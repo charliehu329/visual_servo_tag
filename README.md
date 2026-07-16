@@ -2,6 +2,7 @@
 
 FR3 的 ROS 2 AprilTag 视觉伺服接口包框架。
 
+```
 velocity_servo_tag/
 ├── velocity_servo_tag/
 │   ├── __init__.py
@@ -27,6 +28,35 @@ velocity_servo_tag/
 ├── setup.cfg
 ├── setup.py
 └── README.md
+```
+
+## 项目简介
+
+`velocity_servo_tag` 是面向 Franka FR3 机械臂的 ROS 2 AprilTag
+视觉伺服接口包，基于
+[sunflower050105/franka_ros2](https://github.com/sunflower050105/franka_ros2)
+运行。
+
+本项目负责连接 USB 相机、Simulink 视觉控制律与 Franka 底层关节速度
+控制器。AprilTag 检测节点从相机图像中提取目标中心坐标，并通过 ROS 2
+Topic 发送给 Simulink；Simulink 根据视觉误差计算相机坐标系下的六维
+速度指令；Python 速度映射节点完成手眼坐标变换、Jacobian 阻尼逆解、
+关节速度限制、关节加速度限制和通信看门狗处理，最终向 Franka 底层
+控制器发送七维关节速度命令。
+
+系统控制链路如下：
+
+```text
+USB Camera
+    → AprilTag Detector
+    → Simulink Visual Servo Law
+    → Camera Velocity
+    → Coordinate Transformation
+    → Jacobian Velocity Mapping
+    → Safety Limiter and Watchdog
+    → Franka Joint Velocity Controller
+    → FR3 Robot
+```
 
 ## ROS 接口
 
@@ -67,6 +97,19 @@ Python代码发送关节速度的Topic（python里面发送）
 本节点的 0.2 s 看门狗用于防止 Simulink 数据中断。底层
 `franka_velocity_ctrl` 仍应保留独立的命令超时保护，因为本 Python
 进程本身崩溃时无法继续发布零速度；两层看门狗不能互相替代。
+
+
+
+## 依赖项目
+
+本项目需要配合以下 Franka ROS 2 工程使用：
+
+- [sunflower050105/franka_ros2](https://github.com/sunflower050105/franka_ros2)
+
+该工程负责提供 Franka ROS 2 驱动、机器人状态以及底层关节速度控制接口。
+请先按照该工程的 README 完成依赖安装、编译和机器人连接配置，再编译并运行本项目。
+
+推荐将本项目放入同一个 ROS 2 工作区，放到 `~/franka_ros2_ws/src` 下。
 
 ## 构建与运行
 
