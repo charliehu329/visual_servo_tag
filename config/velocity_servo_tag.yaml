@@ -31,7 +31,7 @@ velocity_mapper_node:
     ]
 
     damping: 0.02
-    publish_rate_hz: 100.0
+    publish_rate_hz: 120.0
     duration_sec: 0.0
 
     # 真机使用前明确改成 false。

@@ -85,6 +85,8 @@ apriltag_detector.py
        会同时占用 USB 相机，并同时向控制链路发送视觉信息。
 """
 
+import time
+
 import cv2
 import numpy as np
 import rclpy
@@ -483,6 +485,12 @@ class AprilTagDetectorNode(Node):
         )
 
         self.target_was_detected = False
+        # 检测相机实时读取的频率
+        # =====================================================
+        # 统计 camera.read() 成功返回图像的实际频率。
+        self.successful_frame_count = 0
+        self.fps_measurement_start = time.monotonic()
+        # =====================================================
 
         self.camera_timer = self.create_timer(
             1.0 / self.camera_fps,
@@ -498,6 +506,7 @@ class AprilTagDetectorNode(Node):
             f"target_id={self.target_tag_id}, "
             f"topic={self.target_position_topic}."
         )
+
 
     def validate_parameters(self):
         """
@@ -672,6 +681,29 @@ class AprilTagDetectorNode(Node):
 
             self.target_was_detected = False
             return
+
+        self.successful_frame_count += 1
+        fps_measurement_now = time.monotonic()
+        fps_elapsed = (
+            fps_measurement_now -
+            self.fps_measurement_start
+        )
+
+        if fps_elapsed >= 20.0:
+            actual_camera_fps = (
+                self.successful_frame_count /
+                fps_elapsed
+            )
+
+            self.get_logger().info(
+                "Successful camera-read FPS: "
+                f"{actual_camera_fps:.2f}"
+            )
+
+            self.successful_frame_count = 0
+            self.fps_measurement_start = (
+                fps_measurement_now
+            )
 
         feature = self.detector.detect(
             image
