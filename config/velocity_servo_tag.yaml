@@ -1,0 +1,56 @@
+apriltag_detector:
+  ros__parameters:
+    camera_index: 0
+    camera_width: 640
+    camera_height: 480
+    camera_fps: 60.0
+    tag_family: "tag36h11"
+    target_tag_id: 0
+    detector_threads: 2
+    quad_decimate: 1.0
+    quad_sigma: 0.0
+    refine_edges: true
+    decode_sharpening: 0.25
+    uv_filter_alpha: 0.4
+    target_position_topic: "/apriltag_detector/target_position"
+    show_window: true
+
+velocity_mapper_node:
+  ros__parameters:
+    # 留空时自动使用本包 config/urdf/fr3.urdf。
+    urdf_path: ""
+    end_effector_frame: "fr3_link8"
+
+    # T_end_effector_camera：把相机坐标表达转换到末端坐标表达。
+    # 当前为占位单位阵，手眼标定后必须替换。
+    T_end_effector_camera: [
+      1.0, 0.0, 0.0, 0.0,
+      0.0, 1.0, 0.0, 0.0,
+      0.0, 0.0, 1.0, 0.0,
+      0.0, 0.0, 0.0, 1.0
+    ]
+
+    damping: 0.02
+    publish_rate_hz: 100.0
+    duration_sec: 0.0
+
+    # 真机使用前明确改成 false。
+    dry_run: true
+
+    # franka 发送的关节速度，位置的Topic（最大1000hz）
+    joint_state_topic: "/franka/joint_states"
+
+    # 视觉伺服law发送的相机坐标系下速度的Topic
+    visual_velocity_topic: "/simulink/camera_velocity"
+
+    # 发送给franka的关节速度命令Topic
+    command_topic: "/velocity_command_node/target_velocities"
+
+    # joint1 到 joint7，单位 rad/s。
+    max_joint_velocities: [0.05, 0.05, 0.05, 0.05, 0.05, 0.05, 0.05]
+
+    # joint1 到 joint7，单位 rad/s^2。
+    max_joint_accelerations: [0.20, 0.20, 0.20, 0.20, 0.20, 0.20, 0.20]
+
+    visual_velocity_timeout_sec: 0.2
+    joint_state_timeout_sec: 0.1
