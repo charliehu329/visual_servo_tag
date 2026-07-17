@@ -437,6 +437,10 @@ for k = 1:numel(logNames)
     wire(model, logMap{k,1}, logMap{k,2}, 'Logging and Diagnostics', k, logNames{k}, true);
 end
 
+% Replace the simulation plant and truth sources with the production ROS 2
+% interface.  The estimator/controllers below are retained unchanged.
+convertModelToROS2(model);
+
 % Helpful annotation and layout.
 annotationText = sprintf(['URDF-derived FR3 kinematics + rigid stereo + pixel EKF + damped approximate-priority IBVS\n' ...
     'V=[vx vy vz wx wy wz]^T; RWCi maps camera coordinates to world.\n' ...
@@ -491,6 +495,183 @@ for p = 1:numel(parameterNames)
     data.DataType = 'double';
     parameterValue = evalin('base', parameterNames{p});
     data.Props.Array.Size = mat2str(size(parameterValue));
+end
+
+function convertModelToROS2(model)
+% Convert the closed-loop simulation into the deployable ROS 2 controller.
+load_system('ros2lib');
+
+deleteNames = {
+    'Simulation Time','Experiment Mode','Target Truth Generator', ...
+    'Stereo Projection and Measurement','Pixel Measurement Noise', ...
+    'Arm Joint States','Zoom States','Depth True Terminator', ...
+    'Depth True Demux','Camera Mount Placeholder', ...
+    'Camera Intrinsics Placeholder','Compatibility Log Aliases', ...
+    'Logging and Diagnostics'};
+for k = 1:numel(deleteNames)
+    path = [model '/' deleteNames{k}];
+    if getSimulinkBlockHandle(path) ~= -1
+        delete_block(path);
+    end
+end
+
+% ROS 2 subscribers.
+add_block('ros2lib/Subscribe',[model '/ROS Vision Subscribe'], ...
+    'topic','cfg.ros2VisionTopic','messageType','std_msgs/Float64MultiArray', ...
+    'sampleTime','cfg.Ts','Position',[25 35 185 95]);
+add_block('simulink/Signal Routing/Bus Selector',[model '/Vision Data'], ...
+    'OutputSignals','Data','Position',[215 50 220 80]);
+add_block('simulink/Signal Routing/Selector',[model '/Vision First 8'], ...
+    'IndexOptionArray',{'Index vector (dialog)'},'Indices','1:8', ...
+    'InputPortWidth','128','Position',[255 50 315 80]);
+addMFunctionSubsystem(model,'ROS Vision Decoder',rosVisionDecoderCode(), ...
+    {'features','isNew'},{'pixelMeasurement','scaleMeasured','validLeft','validRight','visionFresh'}, ...
+    [350 25 555 160]);
+
+add_block('ros2lib/Subscribe',[model '/ROS Joint State Subscribe'], ...
+    'topic','cfg.ros2JointStateTopic','messageType','sensor_msgs/JointState', ...
+    'sampleTime','cfg.Ts','Position',[25 200 185 260]);
+add_block('simulink/Signal Routing/Bus Selector',[model '/Joint Position'], ...
+    'OutputSignals','Position','Position',[215 215 220 245]);
+add_block('simulink/Signal Routing/Selector',[model '/Joint First 7'], ...
+    'IndexOptionArray',{'Index vector (dialog)'},'Indices','1:7', ...
+    'InputPortWidth','128','Position',[255 215 315 245]);
+addMFunctionSubsystem(model,'ROS Joint Decoder',rosJointDecoderCode(), ...
+    {'position','isNew'},{'q','jointFresh'},[350 190 555 275]);
+
+add_block('ros2lib/Subscribe',[model '/ROS Focal State Subscribe'], ...
+    'topic','cfg.ros2FocalStateTopic','messageType','std_msgs/Float64MultiArray', ...
+    'sampleTime','cfg.Ts','Position',[25 355 185 415]);
+add_block('simulink/Signal Routing/Bus Selector',[model '/Focal Data'], ...
+    'OutputSignals','Data','Position',[215 370 220 400]);
+add_block('simulink/Signal Routing/Selector',[model '/Focal First 2'], ...
+    'IndexOptionArray',{'Index vector (dialog)'},'Indices','1:2', ...
+    'InputPortWidth','128','Position',[255 370 315 400]);
+addMFunctionSubsystem(model,'ROS Focal Decoder',rosFocalDecoderCode(), ...
+    {'focalMm','isNew'},{'focalLengthMeasuredMm','focalFresh'},[350 345 555 430]);
+addMFunctionSubsystem(model,'ROS Input Validity',rosValidityCode(), ...
+    {'validLeftRaw','validRightRaw','visionFresh','jointFresh','focalFresh'}, ...
+    {'validLeft','validRight'},[610 175 790 300]);
+addMFunctionSubsystem(model,'Focal State Calibration',zoomStateCode(), ...
+    {'fMm'},{'focalLengthMeasuredMm','fxMeasuredPx','fyMeasuredPx', ...
+    'focalAtWorkingLowerLimit','focalAtWorkingUpperLimit', ...
+    'focalAtHardwareLowerLimit','focalAtHardwareUpperLimit', ...
+    'focalOutsideWorkingRange','focalHardwareLimitViolation','focalRangeUsage', ...
+    'focalHeadroomMm','focalLengthWorkingMinMm','focalLengthWorkingMaxMm', ...
+    'focalLengthHardwareMinMm','focalLengthHardwareMaxMm'},[825 330 1040 700]);
+
+% Subscriber wiring.
+wire(model,'ROS Vision Subscribe',2,'Vision Data',1,'',false);
+wire(model,'Vision Data',1,'Vision First 8',1,'',false);
+wire(model,'Vision First 8',1,'ROS Vision Decoder',1,'',false);
+wire(model,'ROS Vision Subscribe',1,'ROS Vision Decoder',2,'',false);
+wire(model,'ROS Joint State Subscribe',2,'Joint Position',1,'',false);
+wire(model,'Joint Position',1,'Joint First 7',1,'',false);
+wire(model,'Joint First 7',1,'ROS Joint Decoder',1,'',false);
+wire(model,'ROS Joint State Subscribe',1,'ROS Joint Decoder',2,'',false);
+wire(model,'ROS Focal State Subscribe',2,'Focal Data',1,'',false);
+wire(model,'Focal Data',1,'Focal First 2',1,'',false);
+wire(model,'Focal First 2',1,'ROS Focal Decoder',1,'',false);
+wire(model,'ROS Focal State Subscribe',1,'ROS Focal Decoder',2,'',false);
+wire(model,'ROS Vision Decoder',3,'ROS Input Validity',1,'',false);
+wire(model,'ROS Vision Decoder',4,'ROS Input Validity',2,'',false);
+wire(model,'ROS Vision Decoder',5,'ROS Input Validity',3,'',false);
+wire(model,'ROS Joint Decoder',2,'ROS Input Validity',4,'',false);
+wire(model,'ROS Focal Decoder',2,'ROS Input Validity',5,'',false);
+wire(model,'ROS Focal Decoder',1,'Focal State Calibration',1,'',false);
+
+% Real measurements replace simulation truth/noise paths.
+wire(model,'ROS Joint Decoder',1,'FR3 Camera Kinematics',1,'q',false);
+wire(model,'ROS Joint Decoder',1,'Arm Priority Controller',1,'',false);
+wire(model,'ROS Joint Decoder',1,'Safety and Saturation',3,'',false);
+wire(model,'ROS Vision Decoder',1,'Measured Feature Extraction',1,'',false);
+wire(model,'Focal State Calibration',2,'Measured Feature Extraction',2,'',false);
+wire(model,'ROS Vision Decoder',2,'Measured Feature Extraction',3,'',false);
+wire(model,'ROS Input Validity',1,'Measured Feature Extraction',4,'',false);
+wire(model,'ROS Input Validity',2,'Measured Feature Extraction',5,'',false);
+wire(model,'ROS Input Validity',1,'Stereo Validity Manager',1,'',false);
+wire(model,'ROS Input Validity',2,'Stereo Validity Manager',2,'',false);
+wire(model,'ROS Input Validity',1,'Arm Priority Controller',8,'',false);
+wire(model,'ROS Input Validity',1,'Right Visibility Guard',4,'',false);
+wire(model,'ROS Input Validity',2,'Right Visibility Guard',5,'',false);
+wire(model,'ROS Input Validity',1,'Zoom Controller',6,'',false);
+wire(model,'ROS Input Validity',1,'Zoom Priority Supervisor',8,'',false);
+wire(model,'ROS Input Validity',1,'Safety and Saturation',5,'',false);
+
+% Focal-state fanout (same port contract as the removed simulation state).
+wire(model,'Focal State Calibration',1,'Right Visibility Guard',3,'',false);
+wire(model,'Focal State Calibration',1,'Zoom Controller',1,'',false);
+wire(model,'Focal State Calibration',4,'Zoom Controller',8,'',false);
+wire(model,'Focal State Calibration',5,'Zoom Controller',9,'',false);
+wire(model,'Focal State Calibration',1,'Zoom Priority Supervisor',3,'',false);
+wire(model,'Focal State Calibration',4,'Zoom Priority Supervisor',4,'',false);
+wire(model,'Focal State Calibration',5,'Zoom Priority Supervisor',5,'',false);
+wire(model,'Focal State Calibration',11,'Zoom Priority Supervisor',6,'',false);
+wire(model,'Focal State Calibration',1,'Safety and Saturation',4,'',false);
+wire(model,'Focal State Calibration',2,'Target EKF',5,'',false);
+
+% Convert the retained joint-space law to the left-camera twist expected by
+% the existing Python mapper: Vc = JL*qDotApplied.
+addMFunctionSubsystem(model,'Camera Velocity Output',cameraVelocityCode(), ...
+    {'qDotApplied','JL','validLeft'},{'cameraVelocity'},[3100 160 3290 255]);
+wire(model,'Safety and Saturation',1,'Camera Velocity Output',1,'',false);
+wire(model,'FR3 Camera Kinematics',5,'Camera Velocity Output',2,'',false);
+wire(model,'ROS Input Validity',1,'Camera Velocity Output',3,'',false);
+
+addROSFloat64Publisher(model,'Camera Velocity Output',1, ...
+    'ROS Camera Velocity Message','ROS Camera Velocity Publish', ...
+    'cfg.ros2CameraVelocityTopic',[3340 130 3650 255]);
+addROSFloat64Publisher(model,'Safety and Saturation',2, ...
+    'ROS Zoom Velocity Message','ROS Zoom Velocity Publish', ...
+    'cfg.ros2ZoomVelocityTopic',[3340 315 3650 440]);
+
+set_param(model,'StopTime','inf','SignalLogging','off');
+end
+
+function addROSFloat64Publisher(model,src,srcPort,msgName,pubName,topic,position)
+blank=[model '/' msgName ' Blank']; assign=[model '/' msgName]; pub=[model '/' pubName];
+add_block('ros2lib/Blank Message',blank,'messageType','std_msgs/Float64MultiArray', ...
+    'SampleTime','cfg.Ts','Position',[position(1) position(2) position(1)+120 position(2)+45]);
+add_block('simulink/Signal Routing/Bus Assignment',assign,'AssignedSignals','Data', ...
+    'Position',[position(1)+155 position(2) position(1)+225 position(2)+70]);
+add_block('ros2lib/Publish',pub,'topic',topic,'messageType','std_msgs/Float64MultiArray', ...
+    'Position',[position(1)+260 position(2) position(1)+410 position(2)+60]);
+wire(model,[msgName ' Blank'],1,msgName,1,'',false);
+wire(model,src,srcPort,msgName,2,'',false);
+wire(model,msgName,1,pubName,1,'',false);
+end
+
+function code=rosVisionDecoderCode()
+code=sprintf(['function [pixelMeasurement,scaleMeasured,validLeft,validRight,visionFresh]=fcn(features,isNew)\n' ...
+    '%%#codegen\npersistent age last\nif isempty(age), age=inf; last=zeros(8,1); end\n' ...
+    'if isNew, last=reshape(features,8,1); age=0; else, age=age+cfg.Ts; end\n' ...
+    'visionFresh=double(age<=cfg.ros2InputTimeoutSec);\n' ...
+    'validLeft=double(visionFresh>0.5 && last(1)>0.5); validRight=double(visionFresh>0.5 && last(2)>0.5);\n' ...
+    'pixelMeasurement=[last(3);last(4);last(5);last(6)]; scaleMeasured=[last(7);last(8)];\n' ...
+    'if any(~isfinite([pixelMeasurement;scaleMeasured])), pixelMeasurement=zeros(4,1); scaleMeasured=zeros(2,1); validLeft=0; validRight=0; end\nend']);
+end
+
+function code=rosJointDecoderCode()
+code=sprintf(['function [q,jointFresh]=fcn(position,isNew)\n%%#codegen\npersistent age last\n' ...
+    'if isempty(age), age=inf; last=cfg.q0; end\nif isNew, candidate=reshape(position,7,1); if all(isfinite(candidate)), last=candidate; age=0; end, else, age=age+cfg.Ts; end\n' ...
+    'q=last; jointFresh=double(age<=cfg.ros2InputTimeoutSec);\nend']);
+end
+
+function code=rosFocalDecoderCode()
+code=sprintf(['function [focalLengthMeasuredMm,focalFresh]=fcn(focalMm,isNew)\n%%#codegen\npersistent age last\n' ...
+    'if isempty(age), age=inf; last=cfg.focalLength0Mm; end\nif isNew, candidate=reshape(focalMm,2,1); if all(isfinite(candidate)) && all(candidate>0), last=candidate; age=0; end, else, age=age+cfg.Ts; end\n' ...
+    'focalLengthMeasuredMm=last; focalFresh=double(age<=cfg.ros2InputTimeoutSec);\nend']);
+end
+
+function code=rosValidityCode()
+code=sprintf(['function [validLeft,validRight]=fcn(validLeftRaw,validRightRaw,visionFresh,jointFresh,focalFresh)\n%%#codegen\n' ...
+    'ready=visionFresh>0.5 && jointFresh>0.5 && focalFresh>0.5; validLeft=double(ready && validLeftRaw>0.5); validRight=double(ready && validRightRaw>0.5);\nend']);
+end
+
+function code=cameraVelocityCode()
+code=sprintf(['function cameraVelocity=fcn(qDotApplied,JL,validLeft)\n%%#codegen\n' ...
+    'cameraVelocity=zeros(6,1); if validLeft>0.5 && all(isfinite(qDotApplied)) && all(isfinite(JL(:))), cameraVelocity=JL*qDotApplied; end\n' ...
+    'if any(~isfinite(cameraVelocity)), cameraVelocity=zeros(6,1); end\nend']);
 end
 for k = 1:nIn
     add_block('simulink/Ports & Subsystems/In1', [path '/' inNames{k}], ...

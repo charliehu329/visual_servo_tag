@@ -11,6 +11,26 @@ cfg.cameraFps = 60;
 cfg.Ts = 1/cfg.cameraFps;
 cfg.stopTime = 30;
 
+% ROS 2接口与Python节点共用同一份YAML。
+rosYamlFile = fullfile(fileparts(fileparts(mfilename('fullpath'))), ...
+    'config','velocity_servo_tag.yaml');
+if ~isfile(rosYamlFile)
+    error('ROS2Interface:MissingYAML','Missing interface YAML: %s',rosYamlFile);
+end
+rosYaml = yamlread(rosYamlFile);
+rosParams = rosYaml.simulink_ros2.ros__parameters;
+cfg.ros2VisionTopic = char(rosParams.vision_topic);
+cfg.ros2JointStateTopic = char(rosParams.joint_state_topic);
+cfg.ros2FocalStateTopic = char(rosParams.focal_state_topic);
+cfg.ros2CameraVelocityTopic = char(rosParams.camera_velocity_topic);
+cfg.ros2ZoomVelocityTopic = char(rosParams.zoom_velocity_topic);
+cfg.ros2InputTimeoutSec = double(rosParams.input_timeout_sec);
+cfg.ros2VisionMessageLength = double(rosParams.vision_message_length);
+cfg.ros2FocalMessageLength = double(rosParams.focal_message_length);
+cfg.ros2CameraVelocityMessageLength = double(rosParams.camera_velocity_message_length);
+cfg.ros2ZoomVelocityMessageLength = double(rosParams.zoom_velocity_message_length);
+cfg.ros2InterfaceYamlFile = rosYamlFile;
+
 projectDir = fileparts(mfilename('fullpath'));
 fr3 = load_fr3_urdf_parameters(fullfile(projectDir,'fr3.urdf'), ...
     fullfile(projectDir,'fr3_urdf_parse_report.txt'));
