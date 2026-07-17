@@ -17,18 +17,33 @@ rosYamlFile = fullfile(fileparts(fileparts(mfilename('fullpath'))), ...
 if ~isfile(rosYamlFile)
     error('ROS2Interface:MissingYAML','Missing interface YAML: %s',rosYamlFile);
 end
-rosYaml = yamlread(rosYamlFile);
-rosParams = rosYaml.simulink_ros2.ros__parameters;
-cfg.ros2VisionTopic = char(rosParams.vision_topic);
-cfg.ros2JointStateTopic = char(rosParams.joint_state_topic);
-cfg.ros2FocalStateTopic = char(rosParams.focal_state_topic);
-cfg.ros2CameraVelocityTopic = char(rosParams.camera_velocity_topic);
-cfg.ros2ZoomVelocityTopic = char(rosParams.zoom_velocity_topic);
-cfg.ros2InputTimeoutSec = double(rosParams.input_timeout_sec);
-cfg.ros2VisionMessageLength = double(rosParams.vision_message_length);
-cfg.ros2FocalMessageLength = double(rosParams.focal_message_length);
-cfg.ros2CameraVelocityMessageLength = double(rosParams.camera_velocity_message_length);
-cfg.ros2ZoomVelocityMessageLength = double(rosParams.zoom_velocity_message_length);
+rosYamlText = fileread(rosYamlFile);
+readYamlString = @(key) regexp(rosYamlText, ...
+    ['(?m)^\s*' key ':\s*"([^"]+)"\s*$'], 'tokens', 'once');
+readYamlNumber = @(key) regexp(rosYamlText, ...
+    ['(?m)^\s*' key ':\s*([-+0-9.eE]+)\s*$'], 'tokens', 'once');
+
+yamlValue = readYamlString('vision_topic');
+cfg.ros2VisionTopic = yamlValue{1};
+yamlValue = readYamlString('joint_state_topic');
+cfg.ros2JointStateTopic = yamlValue{1};
+yamlValue = readYamlString('focal_state_topic');
+cfg.ros2FocalStateTopic = yamlValue{1};
+yamlValue = readYamlString('camera_velocity_topic');
+cfg.ros2CameraVelocityTopic = yamlValue{1};
+yamlValue = readYamlString('zoom_velocity_topic');
+cfg.ros2ZoomVelocityTopic = yamlValue{1};
+
+yamlValue = readYamlNumber('input_timeout_sec');
+cfg.ros2InputTimeoutSec = str2double(yamlValue{1});
+yamlValue = readYamlNumber('vision_message_length');
+cfg.ros2VisionMessageLength = str2double(yamlValue{1});
+yamlValue = readYamlNumber('focal_message_length');
+cfg.ros2FocalMessageLength = str2double(yamlValue{1});
+yamlValue = readYamlNumber('camera_velocity_message_length');
+cfg.ros2CameraVelocityMessageLength = str2double(yamlValue{1});
+yamlValue = readYamlNumber('zoom_velocity_message_length');
+cfg.ros2ZoomVelocityMessageLength = str2double(yamlValue{1});
 cfg.ros2InterfaceYamlFile = rosYamlFile;
 
 projectDir = fileparts(mfilename('fullpath'));

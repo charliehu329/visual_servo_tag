@@ -496,6 +496,19 @@ for p = 1:numel(parameterNames)
     parameterValue = evalin('base', parameterNames{p});
     data.Props.Array.Size = mat2str(size(parameterValue));
 end
+for k = 1:nIn
+    add_block('simulink/Ports & Subsystems/In1', [path '/' inNames{k}], ...
+        'Port', num2str(k), 'Position', [25 35*k 55 35*k+14]);
+    add_line(path, [inNames{k} '/1'], sprintf('MATLAB Function/%d',k), ...
+        'autorouting', 'on');
+end
+for k = 1:nOut
+    add_block('simulink/Ports & Subsystems/Out1', [path '/' outNames{k}], ...
+        'Port', num2str(k), 'Position', [390 35*k 420 35*k+14]);
+    add_line(path, sprintf('MATLAB Function/%d',k), [outNames{k} '/1'], ...
+        'autorouting', 'on');
+end
+end
 
 function convertModelToROS2(model)
 % Convert the closed-loop simulation into the deployable ROS 2 controller.
@@ -672,19 +685,6 @@ function code=cameraVelocityCode()
 code=sprintf(['function cameraVelocity=fcn(qDotApplied,JL,validLeft)\n%%#codegen\n' ...
     'cameraVelocity=zeros(6,1); if validLeft>0.5 && all(isfinite(qDotApplied)) && all(isfinite(JL(:))), cameraVelocity=JL*qDotApplied; end\n' ...
     'if any(~isfinite(cameraVelocity)), cameraVelocity=zeros(6,1); end\nend']);
-end
-for k = 1:nIn
-    add_block('simulink/Ports & Subsystems/In1', [path '/' inNames{k}], ...
-        'Port', num2str(k), 'Position', [25 35*k 55 35*k+14]);
-    add_line(path, [inNames{k} '/1'], sprintf('MATLAB Function/%d',k), ...
-        'autorouting', 'on');
-end
-for k = 1:nOut
-    add_block('simulink/Ports & Subsystems/Out1', [path '/' outNames{k}], ...
-        'Port', num2str(k), 'Position', [390 35*k 420 35*k+14]);
-    add_line(path, sprintf('MATLAB Function/%d',k), [outNames{k} '/1'], ...
-        'autorouting', 'on');
-end
 end
 
 function addJointStateSubsystem(model, position)
