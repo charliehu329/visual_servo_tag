@@ -373,8 +373,13 @@ ros2 topic echo /apriltag_detector/target_position
 启动视觉伺服节点，但不向真机发送关节速度：
 
 ```bash
-ros2 launch velocity_servo_tag velocity_servo_tag.launch.py \
-  dry_run:=true
+ros2 launch velocity_servo_tag full_system.launch.py \
+  robot_ip:=172.16.0.2 \
+  start_hardware:=true \
+  dry_run:=true \
+  command_mode:=zero \
+  start_detector:=true \
+  use_rviz:=false
 ```
 
 不启动检测器，只测试 Simulink 到速度映射节点的后半段：
@@ -450,7 +455,9 @@ source ~/franka_ros2_ws/install/setup.bash
 ```bash
 ros2 launch velocity_servo_tag full_system.launch.py \
   robot_ip:=172.16.0.2 \
+  start_hardware:=true \
   dry_run:=true \
+  command_mode:=zero \
   start_detector:=true \
   use_rviz:=false
 ```
@@ -472,7 +479,9 @@ ros2 launch velocity_servo_tag full_system.launch.py \
 ```bash
 ros2 launch velocity_servo_tag full_system.launch.py \
   robot_ip:=172.16.0.2 \
+  start_hardware:=true \
   dry_run:=false \
+  command_mode:=topic \
   start_detector:=true \
   use_rviz:=false
 ```

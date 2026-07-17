@@ -30,7 +30,7 @@ apriltag_detector:
 velocity_mapper_node:
   ros__parameters:
     # 留空时使用本包config/urdf/fr3.urdf。
-    urdf_path: "config/urdf/fr3.urdf"
+    urdf_path: ""
 
     # 必须与URDF中的末端帧名称一致。
     end_effector_frame: "fr3_link8"

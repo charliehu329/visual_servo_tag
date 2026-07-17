@@ -138,11 +138,6 @@ def generate_launch_description():
             "robot_ip": robot_ip,
             "load_gripper": load_gripper,
             "use_fake_hardware": "false",
-
-            # 这里由本launch文件自行启动该广播器。
-            "load_franka_robot_state_broadcaster":
-                "false",
-
             "controllers_yaml":
                 controllers_yaml,
         }.items(),
@@ -154,20 +149,6 @@ def generate_launch_description():
 
     # joint_state_broadcaster由franka.launch.py启动，
     # 这里不能重复启动。
-
-    franka_state_broadcaster_spawner = Node(
-        package="controller_manager",
-        executable="spawner",
-        name="franka_state_broadcaster_spawner",
-        arguments=[
-            "franka_robot_state_broadcaster",
-            "--controller-manager",
-            "/controller_manager",
-            "--controller-manager-timeout",
-            "30",
-        ],
-        output="screen",
-    )
 
     velocity_controller_spawner = Node(
         package="controller_manager",
@@ -183,13 +164,6 @@ def generate_launch_description():
         output="screen",
     )
 
-    # 分阶段启动，避免controller_manager尚未就绪。
-    delayed_state_broadcaster = TimerAction(
-        period=3.0,
-        actions=[
-            franka_state_broadcaster_spawner
-        ],
-    )
 
     delayed_velocity_controller = TimerAction(
         period=5.0,
@@ -271,7 +245,6 @@ def generate_launch_description():
             declare_params_file,
 
             franka_bringup,
-            delayed_state_broadcaster,
             delayed_velocity_controller,
             delayed_velocity_command_node,
             rviz_node,
