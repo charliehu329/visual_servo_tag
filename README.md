@@ -168,17 +168,7 @@ source /opt/ros/jazzy/setup.bash
 source ~/franka_ros2_ws/install/setup.bash
 ```
 
-### 运行
-
-终端1：先启动底层节点
-```
-ros2 launch franka_velocity_ctrl fr3_velocity.launch.py \
-    robot_ip:=172.16.0.2 \
-    mode:=topic \ # zero就是连接真机但是持续发零速度
-    use_rviz:=false
-```
-终端2：启动visual_servo_tag节点
-
+### 试验
 先用 dry-run 验证整条链路：
 
 ```bash
@@ -203,3 +193,25 @@ ros2 launch velocity_servo_tag velocity_servo_tag.launch.py dry_run:=false
 python3 -m velocity_servo_tag.vision.apriltag_detector   --ros-args   -p camera_fps:=60.0   -p quad_decimate:=1.0
 
 ```
+
+
+### 运行
+#### 1：终端1：先启动底层节点
+```
+ros2 launch franka_velocity_ctrl fr3_velocity.launch.py \
+    robot_ip:=172.16.0.2 \
+    mode:=topic \ # zero就是连接真机但是持续发零速度
+    use_rviz:=false
+```
+#### 2：启动simulink
+
+#### 3：终端2：启动visual_servo_tag节点
+dry_run:= false 表示发送速度
+
+```bash
+ros2 launch velocity_servo_tag velocity_servo_tag.launch.py dry_run:=false
+```
+
+
+
+
