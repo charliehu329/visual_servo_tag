@@ -168,6 +168,14 @@ source /opt/ros/jazzy/setup.bash
 source ~/franka_ros2_ws/install/setup.bash
 ```
 
+### 运行
+
+只运行detector
+```
+python3 -m velocity_servo_tag.vision.apriltag_detector   --ros-args   -p camera_fps:=60.0   -p quad_decimate:=1.0
+
+```
+
 先用 dry-run 验证整条链路：
 
 ```bash
