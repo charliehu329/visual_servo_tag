@@ -117,7 +117,7 @@ class VelocityMapperNode(Node):
 
         # 控制参数
         self.declare_parameter("damping", 0.02)
-        self.declare_parameter("publish_rate_hz", 100.0)
+        self.declare_parameter("publish_rate_hz", 120.0)
         self.declare_parameter("duration_sec", 0.0)
         self.declare_parameter("dry_run", True)
 
@@ -125,7 +125,7 @@ class VelocityMapperNode(Node):
         self.declare_parameter("joint_state_topic", "/franka/joint_states")
         self.declare_parameter(
             "command_topic",
-            "/velocity_command_node/target_velocities"
+            "/velocity_mapper_node/target_joints_velocities"
         )
         self.declare_parameter(
             "visual_velocity_topic",

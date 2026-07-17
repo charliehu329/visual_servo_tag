@@ -15,7 +15,7 @@
 | Python → Simulink | `/apriltag_detector/target_position` | `std_msgs/Float64MultiArray` | `[valid, u, v]` |
 | Franka → Simulink | `/franka/joint_states` | `sensor_msgs/JointState` | 7 个关节的位置和速度 |
 | Simulink → Python | `/simulink/camera_velocity` | `std_msgs/Float64MultiArray` | `[vx, vy, 0, 0, 0, 0]` |
-| Python → Franka | `/velocity_command_node/target_velocities` | `std_msgs/Float64MultiArray` | `[dq1, ..., dq7]` |
+| Python → Franka | `/velocity_mapper_node/target_joints_velocities` | `std_msgs/Float64MultiArray` | `[dq1, ..., dq7]` |
 
 模型已经内置：
 
@@ -268,7 +268,7 @@ q_dot_cmd
 
 ```bash
 ros2 topic echo /simulink/camera_velocity
-ros2 topic echo /velocity_command_node/target_velocities
+ros2 topic echo /velocity_mapper_node/target_joints_velocities
 ```
 
 通过标准：
@@ -312,4 +312,3 @@ ros2 topic echo /velocity_command_node/target_velocities
 - [ ] Simulink、Python 和底层三层安全停止均已验证
 - [ ] 实时内核和有线网络正常
 - [ ] 操作者可立即使用急停
-

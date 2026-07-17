@@ -7,7 +7,7 @@ velocity_command_node.py
     加速度限制和通信超时保护，然后发送给 Franka 底层速度控制器。
 
 订阅：
-    /velocity_command_node/target_velocities
+    /velocity_mapper_node/target_joints_velocities
         std_msgs/msg/Float64MultiArray
         [dq1, dq2, dq3, dq4, dq5, dq6, dq7]
 
@@ -59,7 +59,7 @@ class VelocityCommandNode(Node):
         # =====================================================
 
         self.declare_parameter("mode", "zero")
-        self.declare_parameter("publish_rate_hz", 100.0)
+        self.declare_parameter("publish_rate_hz", 120.0)
         self.declare_parameter("max_velocity_scale", 0.1)
 
         self.declare_parameter(
@@ -74,7 +74,7 @@ class VelocityCommandNode(Node):
 
         self.declare_parameter(
             "input_topic",
-            "/velocity_command_node/target_velocities",
+            "/velocity_mapper_node/target_joints_velocities",
         )
 
         self.declare_parameter(

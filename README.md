@@ -67,7 +67,7 @@ USB Camera
     → Simulink Visual Servo Controller
     → /simulink/camera_velocity
     → Velocity Mapper
-    → /velocity_command_node/target_velocities
+    → /velocity_mapper_node/target_joints_velocities
     → Velocity Command Node
     → /joint_velocity_example_controller/commands
     → Franka FR3
@@ -90,7 +90,7 @@ std_msgs/msg/Float64MultiArray
 数据格式：
 
 ```text
-[valid, tag_id, u, v]
+[valid, u, v]
 ```
 
 通信关系：
@@ -101,7 +101,6 @@ std_msgs/msg/Float64MultiArray
 其中：
 
 - `valid`：是否检测到目标，检测到为 `1`
-- `tag_id`：AprilTag ID
 - `u`：目标中心横向像素坐标
 - `v`：目标中心纵向像素坐标
 
@@ -157,7 +156,7 @@ sensor_msgs/msg/JointState
 ### 关节速度映射结果
 
 ```text
-/velocity_command_node/target_velocities
+/velocity_mapper_node/target_joints_velocities
 ```
 
 消息类型：
@@ -591,7 +590,7 @@ ros2 topic echo /simulink/camera_velocity
 检查关节速度目标：
 
 ```bash
-ros2 topic echo /velocity_command_node/target_velocities
+ros2 topic echo /velocity_mapper_node/target_joints_velocities
 ```
 
 检查底层控制器命令：
@@ -604,14 +603,14 @@ ros2 topic echo /joint_velocity_example_controller/commands
 
 ```bash
 ros2 topic hz /simulink/camera_velocity
-ros2 topic hz /velocity_command_node/target_velocities
+ros2 topic hz /velocity_mapper_node/target_joints_velocities
 ros2 topic hz /joint_velocity_example_controller/commands
 ```
 
 检查话题发布者，确保关键速度话题只有预期的一个发布者：
 
 ```bash
-ros2 topic info -v /velocity_command_node/target_velocities
+ros2 topic info -v /velocity_mapper_node/target_joints_velocities
 ros2 topic info -v /joint_velocity_example_controller/commands
 ```
 
