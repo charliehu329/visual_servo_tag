@@ -1,29 +1,166 @@
 <?xml version="1.0"?>
-<?xml-model href="http://download.ros.org/schema/package_format3.xsd" schematypens="http://www.w3.org/2001/XMLSchema"?>
+
+<?xml-model
+  href="http://download.ros.org/schema/package_format3.xsd"
+  schematypens="http://www.w3.org/2001/XMLSchema"?>
+
 <package format="3">
+
   <name>velocity_servo_tag</name>
-  <version>0.1.0</version>
-  <description>AprilTag and Simulink visual-servo interface for Franka FR3.</description>
-  <maintainer email="harry@todo.todo">harry</maintainer>
-  <license>Apache-2.0</license>
 
-  <buildtool_depend>ament_python</buildtool_depend>
+  <version>0.2.0</version>
 
-  <depend>ament_index_python</depend>
-  <depend>rclpy</depend>
-  <depend>sensor_msgs</depend>
-  <depend>std_msgs</depend>
-  <exec_depend>launch</exec_depend>
-  <exec_depend>launch_ros</exec_depend>
-  <exec_depend>python3-numpy</exec_depend>
-  <exec_depend>python3-opencv</exec_depend>
-  <exec_depend>pinocchio</exec_depend>
+  <description>
+    Complete AprilTag and Simulink visual-servo package for
+    Franka Research 3, including camera detection, Cartesian-to-joint
+    velocity mapping, safety watchdogs, Franka hardware bringup,
+    and joint velocity command forwarding.
+  </description>
 
-  <test_depend>ament_flake8</test_depend>
-  <test_depend>ament_pep257</test_depend>
-  <test_depend>python3-pytest</test_depend>
+  <maintainer email="harry@todo.todo">
+    harry
+  </maintainer>
+
+  <license>
+    Apache-2.0
+  </license>
+
+  <!-- ===================================================== -->
+  <!-- Build system -->
+  <!-- ===================================================== -->
+
+  <buildtool_depend>
+    ament_python
+  </buildtool_depend>
+
+  <!-- ===================================================== -->
+  <!-- Python ROS 2 dependencies -->
+  <!-- ===================================================== -->
+
+  <depend>
+    rclpy
+  </depend>
+
+  <depend>
+    ament_index_python
+  </depend>
+
+  <depend>
+    std_msgs
+  </depend>
+
+  <depend>
+    sensor_msgs
+  </depend>
+
+  <!-- ===================================================== -->
+  <!-- ROS 2 launch dependencies -->
+  <!-- ===================================================== -->
+
+  <exec_depend>
+    launch
+  </exec_depend>
+
+  <exec_depend>
+    launch_ros
+  </exec_depend>
+
+  <exec_depend>
+    ros2launch
+  </exec_depend>
+
+  <!-- ===================================================== -->
+  <!-- ros2_control dependencies -->
+  <!-- ===================================================== -->
+
+  <depend>
+    controller_manager
+  </depend>
+
+  <depend>
+    joint_state_broadcaster
+  </depend>
+
+  <!-- ===================================================== -->
+  <!-- Franka dependencies -->
+  <!-- ===================================================== -->
+
+  <depend>
+    franka_bringup
+  </depend>
+
+  <depend>
+    franka_description
+  </depend>
+
+  <depend>
+    franka_hardware
+  </depend>
+
+  <depend>
+    franka_msgs
+  </depend>
+
+  <depend>
+    franka_robot_state_broadcaster
+  </depend>
+
+  <depend>
+    franka_example_controllers
+  </depend>
+
+  <!-- ===================================================== -->
+  <!-- Runtime dependencies -->
+  <!-- ===================================================== -->
+
+  <exec_depend>
+    python3-numpy
+  </exec_depend>
+
+  <exec_depend>
+    python3-opencv
+  </exec_depend>
+
+  <exec_depend>
+    pinocchio
+  </exec_depend>
+
+  <!-- RViz只在use_rviz:=true时使用。 -->
+
+  <exec_depend>
+    rviz2
+  </exec_depend>
+
+    <!-- pupil-apriltags通过pip安装，因此不在rosdep中声明。 -->
+
+  <!-- ===================================================== -->
+  <!-- Test dependencies -->
+  <!-- ===================================================== -->
+
+  <test_depend>
+    ament_copyright
+  </test_depend>
+
+  <test_depend>
+    ament_flake8
+  </test_depend>
+
+  <test_depend>
+    ament_pep257
+  </test_depend>
+
+  <test_depend>
+    python3-pytest
+  </test_depend>
+
+  <!-- ===================================================== -->
+  <!-- Export -->
+  <!-- ===================================================== -->
 
   <export>
-    <build_type>ament_python</build_type>
+    <build_type>
+      ament_python
+    </build_type>
   </export>
+
 </package>

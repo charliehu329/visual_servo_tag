@@ -1,56 +1,126 @@
+# velocity_servo_tag.yaml
+#
+# AprilTag检测、相机速度映射和Franka关节速度命令节点的统一配置。
+
+
 apriltag_detector:
   ros__parameters:
     camera_index: 0
     camera_width: 640
     camera_height: 480
     camera_fps: 60.0
+
     tag_family: "tag36h11"
     target_tag_id: 0
+
     detector_threads: 2
     quad_decimate: 1.0
     quad_sigma: 0.0
     refine_edges: true
     decode_sharpening: 0.25
+
+    # 一阶低通滤波系数：
+    # 1.0表示不滤波，数值越小越平滑。
     uv_filter_alpha: 0.4
+
     target_position_topic: "/apriltag_detector/target_position"
     show_window: true
 
+
 velocity_mapper_node:
   ros__parameters:
-    # 留空时自动使用本包 config/urdf/fr3.urdf。
-    urdf_path: ""
+    # 留空时使用本包config/urdf/fr3.urdf。
+    urdf_path: "config/urdf/fr3.urdf"
+
+    # 必须与URDF中的末端帧名称一致。
     end_effector_frame: "fr3_link8"
 
-    # T_end_effector_camera：把相机坐标表达转换到末端坐标表达。
-    # 当前为占位单位阵，手眼标定后必须替换。
-    T_end_effector_camera: [
-      1.0, 0.0, 0.0, 0.0,
-      0.0, 1.0, 0.0, 0.0,
-      0.0, 0.0, 1.0, 0.0,
-      0.0, 0.0, 0.0, 1.0
-    ]
+    # 相机速度到末端速度的手眼变换。
+    #
+    # 当前单位阵仅为占位值，实机非零运动前必须替换为标定结果。
+    T_end_effector_camera:
+      - 1.0
+      - 0.0
+      - 0.0
+      - 0.0
+      - 0.0
+      - 1.0
+      - 0.0
+      - 0.0
+      - 0.0
+      - 0.0
+      - 1.0
+      - 0.0
+      - 0.0
+      - 0.0
+      - 0.0
+      - 1.0
 
+    # Jacobian阻尼最小二乘系数。
     damping: 0.02
-    publish_rate_hz: 120.0
+
+    # Python速度映射和关节命令计算频率。
+    publish_rate_hz: 100.0
+
+    # 0表示不限制运行总时长。
     duration_sec: 0.0
 
-    # 真机使用前明确改成 false。
+    # 默认不向下游发送关节速度。
     dry_run: true
 
-    # franka 发送的关节速度，位置的Topic（最大1000hz）
     joint_state_topic: "/franka/joint_states"
-
-    # 视觉伺服law发送的相机坐标系下速度的Topic
     visual_velocity_topic: "/simulink/camera_velocity"
 
-    # 发送给franka的关节速度命令Topic
+    # 发送给本包velocity_command_node。
     command_topic: "/velocity_command_node/target_velocities"
 
-    # joint1 到 joint7，单位 rad/s。
-    max_joint_velocities: [0.05, 0.05, 0.05, 0.05, 0.05, 0.05, 0.05]
+    # mapper层关节速度限制，单位rad/s。
+    max_joint_velocities:
+      - 0.05
+      - 0.05
+      - 0.05
+      - 0.05
+      - 0.05
+      - 0.05
+      - 0.05
 
-    # joint1 到 joint7，单位 rad/s^2。
-    max_joint_accelerations: [0.20, 0.20, 0.20, 0.20, 0.20, 0.20, 0.20]
+    # mapper层关节加速度限制，单位rad/s²。
+    max_joint_accelerations:
+      - 0.20
+      - 0.20
+      - 0.20
+      - 0.20
+      - 0.20
+      - 0.20
+      - 0.20
 
-    visual_velocity_timeout_sec: 0.2
-    joint_state_timeout_sec: 0.1
+    visual_velocity_timeout_sec: 0.20
+    joint_state_timeout_sec: 0.10
+
+
+velocity_command_node:
+  ros__parameters:
+    # 默认zero最安全。
+    # 真正接收mapper速度时由launch覆盖为topic。
+    mode: "zero"
+
+    publish_rate_hz: 100.0
+
+    # 相对于FR3官方关节速度上限的最终保护比例。
+    max_velocity_scale: 0.10
+
+    # 底层命令桥接层的加速度限制，单位rad/s²。
+    max_joint_accelerations:
+      - 0.20
+      - 0.20
+      - 0.20
+      - 0.20
+      - 0.20
+      - 0.20
+      - 0.20
+
+    # mapper崩溃或停止发布后，超过此时间开始平滑减速。
+    target_velocity_timeout_sec: 0.15
+
+    input_topic: "/velocity_command_node/target_velocities"
+    command_topic: "/joint_velocity_example_controller/commands"
