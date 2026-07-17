@@ -93,6 +93,11 @@ std_msgs/msg/Float64MultiArray
 [valid, tag_id, u, v]
 ```
 
+通信关系：
+
+发布者：apriltag_detector
+订阅者：Simulink 视觉控制器
+
 其中：
 
 - `valid`：是否检测到目标，检测到为 `1`
@@ -120,6 +125,11 @@ std_msgs/msg/Float64MultiArray
 [vx, vy, vz, wx, wy, wz]
 ```
 
+通信关系：
+
+发布者：Simulink 视觉控制器
+订阅者：velocity_mapper_node
+
 速度在相机坐标系中表达：
 
 - `vx, vy, vz`：线速度，单位 `m/s`
@@ -136,6 +146,11 @@ std_msgs/msg/Float64MultiArray
 ```text
 sensor_msgs/msg/JointState
 ```
+
+通信关系：
+
+发布者：joint_state_broadcaster
+订阅者：velocity_mapper_node、Simulink及其他状态监控节点
 
 包含 FR3 七个关节的位置和速度。实际话题名称可以在参数文件中修改。
 
@@ -159,6 +174,11 @@ std_msgs/msg/Float64MultiArray
 
 单位为 `rad/s`。
 
+通信关系：
+
+发布者：velocity_mapper_node
+订阅者：velocity_command_node
+
 ### 底层控制器命令
 
 ```text
@@ -170,6 +190,11 @@ std_msgs/msg/Float64MultiArray
 ```text
 std_msgs/msg/Float64MultiArray
 ```
+
+通信关系：
+
+发布者：velocity_command_node
+订阅者：joint_velocity_example_controller
 
 该话题由本包中的 `velocity_command_node` 发布，直接连接 Franka 关节速度控制器。
 
@@ -442,6 +467,43 @@ ros2 topic pub --rate 20 \
 - 速度和加速度限制足够小
 - Simulink 使用实时节拍运行
 - 所有看门狗均已验证
+
+### 一体化真机启动参数说明
+
+```bash
+ros2 launch velocity_servo_tag full_system.launch.py \
+  robot_ip:=172.16.0.2 \
+  start_hardware:=true \
+  dry_run:=false \
+  command_mode:=topic \
+  start_detector:=true \
+  use_rviz:=false
+```
+
+各参数含义：
+
+* `robot_ip:=172.16.0.2`
+  Franka FR3 控制器的 IP 地址。
+
+* `start_hardware:=true`
+  启动 Franka 硬件驱动、状态广播器和关节速度控制器。设为 `false` 时不会连接真机。
+
+* `dry_run:=false`
+  允许 `velocity_mapper_node` 发布计算得到的七维关节速度。设为 `true` 时只计算，不向下游发布。
+
+* `command_mode:=topic`
+  让 `velocity_command_node` 接收并转发上层关节速度。设为 `zero` 时忽略上层速度，持续向机器人发送七维零速度。
+
+* `start_detector:=true`
+  启动 USB 相机和 AprilTag 检测节点。设为 `false` 时不启动检测器，适合单独测试 Simulink 后半段。
+
+* `use_rviz:=false`
+  不启动 RViz。设为 `true` 时同时打开 RViz 显示机器人模型。
+
+> `start_hardware:=true + dry_run:=false + command_mode:=topic` 会允许非零速度到达真机，仅在手眼标定、方向、限速和看门狗均验证完成后使用。
+
+
+
 
 ### 一体化启动
 
