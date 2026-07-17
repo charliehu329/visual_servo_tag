@@ -60,7 +60,7 @@ velocity_mapper_node:
     damping: 0.02
 
     # Python速度映射和关节命令计算频率。
-    publish_rate_hz: 100.0
+    publish_rate_hz: 120.0
 
     # 0表示不限制运行总时长。
     duration_sec: 0.0
@@ -71,8 +71,8 @@ velocity_mapper_node:
     joint_state_topic: "/franka/joint_states"
     visual_velocity_topic: "/simulink/camera_velocity"
 
-    # 发送给本包velocity_command_node。
-    command_topic: "/velocity_command_node/target_velocities"
+    # velocity_mapper_node发布的关节速度,velocity_command_node订阅。
+    command_topic: "/velocity_mapper_node/target_joints_velocities"
 
     # mapper层关节速度限制，单位rad/s。
     max_joint_velocities:
@@ -104,7 +104,7 @@ velocity_command_node:
     # 真正接收mapper速度时由launch覆盖为topic。
     mode: "zero"
 
-    publish_rate_hz: 100.0
+    publish_rate_hz: 120.0
 
     # 相对于FR3官方关节速度上限的最终保护比例。
     max_velocity_scale: 0.10
@@ -122,5 +122,5 @@ velocity_command_node:
     # mapper崩溃或停止发布后，超过此时间开始平滑减速。
     target_velocity_timeout_sec: 0.15
 
-    input_topic: "/velocity_command_node/target_velocities"
+    input_topic: "/velocity_mapper_node/target_joints_velocities"
     command_topic: "/joint_velocity_example_controller/commands"
