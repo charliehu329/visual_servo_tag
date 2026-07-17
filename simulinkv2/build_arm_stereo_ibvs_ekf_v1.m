@@ -581,34 +581,34 @@ wire(model,'ROS Focal Decoder',2,'ROS Input Validity',5,'',false);
 wire(model,'ROS Focal Decoder',1,'Focal State Calibration',1,'',false);
 
 % Real measurements replace simulation truth/noise paths.
-wire(model,'ROS Joint Decoder',1,'FR3 Camera Kinematics',1,'q',false);
-wire(model,'ROS Joint Decoder',1,'Arm Priority Controller',1,'',false);
-wire(model,'ROS Joint Decoder',1,'Safety and Saturation',3,'',false);
-wire(model,'ROS Vision Decoder',1,'Measured Feature Extraction',1,'',false);
-wire(model,'Focal State Calibration',2,'Measured Feature Extraction',2,'',false);
-wire(model,'ROS Vision Decoder',2,'Measured Feature Extraction',3,'',false);
-wire(model,'ROS Input Validity',1,'Measured Feature Extraction',4,'',false);
-wire(model,'ROS Input Validity',2,'Measured Feature Extraction',5,'',false);
-wire(model,'ROS Input Validity',1,'Stereo Validity Manager',1,'',false);
-wire(model,'ROS Input Validity',2,'Stereo Validity Manager',2,'',false);
-wire(model,'ROS Input Validity',1,'Arm Priority Controller',8,'',false);
-wire(model,'ROS Input Validity',1,'Right Visibility Guard',4,'',false);
-wire(model,'ROS Input Validity',2,'Right Visibility Guard',5,'',false);
-wire(model,'ROS Input Validity',1,'Zoom Controller',6,'',false);
-wire(model,'ROS Input Validity',1,'Zoom Priority Supervisor',8,'',false);
-wire(model,'ROS Input Validity',1,'Safety and Saturation',5,'',false);
+wireReplace(model,'ROS Joint Decoder',1,'FR3 Camera Kinematics',1,'q');
+wireReplace(model,'ROS Joint Decoder',1,'Arm Priority Controller',1,'');
+wireReplace(model,'ROS Joint Decoder',1,'Safety and Saturation',3,'');
+wireReplace(model,'ROS Vision Decoder',1,'Measured Feature Extraction',1,'');
+wireReplace(model,'Focal State Calibration',2,'Measured Feature Extraction',2,'');
+wireReplace(model,'ROS Vision Decoder',2,'Measured Feature Extraction',3,'');
+wireReplace(model,'ROS Input Validity',1,'Measured Feature Extraction',4,'');
+wireReplace(model,'ROS Input Validity',2,'Measured Feature Extraction',5,'');
+wireReplace(model,'ROS Input Validity',1,'Stereo Validity Manager',1,'');
+wireReplace(model,'ROS Input Validity',2,'Stereo Validity Manager',2,'');
+wireReplace(model,'ROS Input Validity',1,'Arm Priority Controller',8,'');
+wireReplace(model,'ROS Input Validity',1,'Right Visibility Guard',4,'');
+wireReplace(model,'ROS Input Validity',2,'Right Visibility Guard',5,'');
+wireReplace(model,'ROS Input Validity',1,'Zoom Controller',6,'');
+wireReplace(model,'ROS Input Validity',1,'Zoom Priority Supervisor',8,'');
+wireReplace(model,'ROS Input Validity',1,'Safety and Saturation',5,'');
 
 % Focal-state fanout (same port contract as the removed simulation state).
-wire(model,'Focal State Calibration',1,'Right Visibility Guard',3,'',false);
-wire(model,'Focal State Calibration',1,'Zoom Controller',1,'',false);
-wire(model,'Focal State Calibration',4,'Zoom Controller',8,'',false);
-wire(model,'Focal State Calibration',5,'Zoom Controller',9,'',false);
-wire(model,'Focal State Calibration',1,'Zoom Priority Supervisor',3,'',false);
-wire(model,'Focal State Calibration',4,'Zoom Priority Supervisor',4,'',false);
-wire(model,'Focal State Calibration',5,'Zoom Priority Supervisor',5,'',false);
-wire(model,'Focal State Calibration',11,'Zoom Priority Supervisor',6,'',false);
-wire(model,'Focal State Calibration',1,'Safety and Saturation',4,'',false);
-wire(model,'Focal State Calibration',2,'Target EKF',5,'',false);
+wireReplace(model,'Focal State Calibration',1,'Right Visibility Guard',3,'');
+wireReplace(model,'Focal State Calibration',1,'Zoom Controller',1,'');
+wireReplace(model,'Focal State Calibration',4,'Zoom Controller',8,'');
+wireReplace(model,'Focal State Calibration',5,'Zoom Controller',9,'');
+wireReplace(model,'Focal State Calibration',1,'Zoom Priority Supervisor',3,'');
+wireReplace(model,'Focal State Calibration',4,'Zoom Priority Supervisor',4,'');
+wireReplace(model,'Focal State Calibration',5,'Zoom Priority Supervisor',5,'');
+wireReplace(model,'Focal State Calibration',11,'Zoom Priority Supervisor',6,'');
+wireReplace(model,'Focal State Calibration',1,'Safety and Saturation',4,'');
+wireReplace(model,'Focal State Calibration',2,'Target EKF',5,'');
 
 % Convert the retained joint-space law to the left-camera twist expected by
 % the existing Python mapper: Vc = JL*qDotApplied.
