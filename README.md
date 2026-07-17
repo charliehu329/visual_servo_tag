@@ -113,15 +113,60 @@ Python代码发送关节速度的Topic（python里面发送）
 
 ## 构建与运行
 
-把本目录放入 ROS 2 工作区的 `src` 后执行：
+### 先检查依赖：
 
 ```bash
-colcon build --packages-select velocity_servo_tag --symlink-install
-source install/setup.bash
+python3 -c "import pinocchio; print('pinocchio: OK')"
+python3 -c "import cv2; print('OpenCV:', cv2.__version__)"
+python3 -c "from pupil_apriltags import Detector; print('pupil_apriltags: OK')"
 ```
 
-依赖 Python 包：`pinocchio`、`opencv-python`、`pupil-apriltags`。
-底层 Franka 速度控制器需另外启动。
+如果缺少 pupil-apriltags，可安装到当前用户环境：
+
+```bash
+python3 -m pip install --user --break-system-packages pupil-apriltags
+```
+
+不建议使用 sudo pip install，以免影响 Ubuntu 和 ROS 2 的系统 Python 环境。
+
+### 构建
+
+将本项目放入 ROS 2 工作区的 src 目录：
+
+```bash
+cd ~/franka_ros2_ws/src
+git clone https://github.com/charliehu329/visual_servo_tag.git
+```
+
+如果仓库已经存在，不需要重复克隆。
+
+
+安装 ROS 依赖并构建：
+
+```bash
+cd ~/franka_ros2_ws
+
+source /opt/ros/jazzy/setup.bash
+
+rosdep install --from-paths src --ignore-src -r -y
+
+colcon build \
+  --packages-select velocity_servo_tag \
+  --symlink-install
+```
+
+构建完成后加载工作区：
+
+```bash
+source ~/franka_ros2_ws/install/setup.bash
+```
+
+每次打开新终端都需要重新执行：
+
+```bash
+source /opt/ros/jazzy/setup.bash
+source ~/franka_ros2_ws/install/setup.bash
+```
 
 先用 dry-run 验证整条链路：
 
