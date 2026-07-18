@@ -127,7 +127,7 @@ velocity_command_node:
 
 
 # Simulink v2 ROS 2接口。
-# MATLAB初始化脚本也从本节读取，修改后无需改SLX。
+# MATLAB初始化脚本也从本节读取；topic修改后需重新运行模型构建脚本。
 simulink_ros2:
   ros__parameters:
     sample_time_sec: 0.016666666666666666
