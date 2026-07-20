@@ -124,3 +124,20 @@ velocity_command_node:
 
     input_topic: "/velocity_mapper_node/target_joints_velocities"
     command_topic: "/joint_velocity_example_controller/commands"
+
+
+# Simulink v2 ROS 2接口。
+# MATLAB初始化脚本也从本节读取；topic修改后需重新运行模型构建脚本。
+simulink_ros2:
+  ros__parameters:
+    sample_time_sec: 0.016666666666666666
+    vision_topic: "/vision_double/target_features"
+    joint_state_topic: "/franka/joint_states"
+    focal_state_topic: "/vision_double/focal_lengths_mm"
+    camera_velocity_topic: "/simulink/camera_velocity"
+    zoom_velocity_topic: "/simulink/zoom_velocities_mm_s"
+    input_timeout_sec: 0.20
+    vision_message_length: 8
+    focal_message_length: 2
+    camera_velocity_message_length: 6
+    zoom_velocity_message_length: 2

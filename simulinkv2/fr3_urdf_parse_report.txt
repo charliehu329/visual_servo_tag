@@ -1,0 +1,332 @@
+FR3 URDF parse report
+Source: /Users/hlc/Desktop/Sustech/Franka_python/visual_servo_tag/simulinkv2/fr3.urdf
+Robot: fr3
+Joint count: 25
+
+Joint 1
+  name: fr3_base_joint
+  type: fixed
+  parent: base
+  child: fr3_link0
+  origin xyz: 0 0 0
+  origin rpy: 0 0 0
+  axis: 0 0 0
+  lower: NaN
+  upper: NaN
+  velocity: NaN
+  effort: NaN
+
+Joint 2
+  name: fr3_link0_accelerometer_top_joint
+  type: fixed
+  parent: fr3_link0
+  child: fr3_link0_accelerometer_top
+  origin xyz: -0.017402 -0.007872000000000001 0.04715
+  origin rpy: 3.1416 0 0
+  axis: 0 0 0
+  lower: NaN
+  upper: NaN
+  velocity: NaN
+  effort: NaN
+
+Joint 3
+  name: fr3_link0_accelerometer_bottom_joint
+  type: fixed
+  parent: fr3_link0
+  child: fr3_link0_accelerometer_bottom
+  origin xyz: -0.019739 0.0015506 0.05075
+  origin rpy: 0 0 -1.5708
+  axis: 0 0 0
+  lower: NaN
+  upper: NaN
+  velocity: NaN
+  effort: NaN
+
+Joint 4
+  name: fr3_link1_accelerometer_top_joint
+  type: fixed
+  parent: fr3_link1
+  child: fr3_link1_accelerometer_top
+  origin xyz: 0.017402 -0.093352 -0.00787
+  origin rpy: -1.5708 0 3.1416
+  axis: 0 0 0
+  lower: NaN
+  upper: NaN
+  velocity: NaN
+  effort: NaN
+
+Joint 5
+  name: fr3_link1_accelerometer_bottom_joint
+  type: fixed
+  parent: fr3_link1
+  child: fr3_link1_accelerometer_bottom
+  origin xyz: 0.01974 -0.08975 0.00155
+  origin rpy: -1.5708 1.5708 0
+  axis: 0 0 0
+  lower: NaN
+  upper: NaN
+  velocity: NaN
+  effort: NaN
+
+Joint 6
+  name: fr3_joint1
+  type: revolute
+  parent: fr3_link0
+  child: fr3_link1
+  origin xyz: 0 0 0.333
+  origin rpy: 0 0 0
+  axis: 0 0 1
+  lower: -2.9007
+  upper: 2.9007
+  velocity: 2.62
+  effort: 87
+
+Joint 7
+  name: fr3_link2_accelerometer_top_joint
+  type: fixed
+  parent: fr3_link2
+  child: fr3_link2_accelerometer_top
+  origin xyz: 0.017403 -0.11715 0.00787
+  origin rpy: 1.5708 0 3.1416
+  axis: 0 0 0
+  lower: NaN
+  upper: NaN
+  velocity: NaN
+  effort: NaN
+
+Joint 8
+  name: fr3_link2_accelerometer_bottom_joint
+  type: fixed
+  parent: fr3_link2
+  child: fr3_link2_accelerometer_bottom
+  origin xyz: 0.019737 -0.11875 -0.00155
+  origin rpy: 1.5708 -1.5708 0
+  axis: 0 0 0
+  lower: NaN
+  upper: NaN
+  velocity: NaN
+  effort: NaN
+
+Joint 9
+  name: fr3_joint2
+  type: revolute
+  parent: fr3_link1
+  child: fr3_link2
+  origin xyz: 0 0 0
+  origin rpy: -1.570796326794897 0 0
+  axis: 0 0 1
+  lower: -1.8361
+  upper: 1.8361
+  velocity: 2.62
+  effort: 87
+
+Joint 10
+  name: fr3_link3_accelerometer_top_joint
+  type: fixed
+  parent: fr3_link3
+  child: fr3_link3_accelerometer_top
+  origin xyz: 0.065099 0.077352 -0.00787
+  origin rpy: -1.5708 0 0
+  axis: 0 0 0
+  lower: NaN
+  upper: NaN
+  velocity: NaN
+  effort: NaN
+
+Joint 11
+  name: fr3_link3_accelerometer_bottom_joint
+  type: fixed
+  parent: fr3_link3
+  child: fr3_link3_accelerometer_bottom
+  origin xyz: 0.06276900000000001 0.073756 0.00155
+  origin rpy: 1.5708 1.5708 0
+  axis: 0 0 0
+  lower: NaN
+  upper: NaN
+  velocity: NaN
+  effort: NaN
+
+Joint 12
+  name: fr3_joint3
+  type: revolute
+  parent: fr3_link2
+  child: fr3_link3
+  origin xyz: 0 -0.316 0
+  origin rpy: 1.570796326794897 0 0
+  axis: 0 0 1
+  lower: -2.9007
+  upper: 2.9007
+  velocity: 2.62
+  effort: 87
+
+Joint 13
+  name: fr3_link4_accelerometer_top_joint
+  type: fixed
+  parent: fr3_link4
+  child: fr3_link4_accelerometer_top
+  origin xyz: -0.06510000000000001 0.046252 -0.00787
+  origin rpy: -1.5708 0 -3.1416
+  axis: 0 0 0
+  lower: NaN
+  upper: NaN
+  velocity: NaN
+  effort: NaN
+
+Joint 14
+  name: fr3_link4_accelerometer_bottom_joint
+  type: fixed
+  parent: fr3_link4
+  child: fr3_link4_accelerometer_bottom
+  origin xyz: -0.062775 0.049753 0.00155
+  origin rpy: -1.5708 1.5708 0
+  axis: 0 0 0
+  lower: NaN
+  upper: NaN
+  velocity: NaN
+  effort: NaN
+
+Joint 15
+  name: fr3_joint4
+  type: revolute
+  parent: fr3_link3
+  child: fr3_link4
+  origin xyz: 0.0825 0 0
+  origin rpy: 1.570796326794897 0 0
+  axis: 0 0 1
+  lower: -3.077
+  upper: -0.1169
+  velocity: 2.62
+  effort: 87
+
+Joint 16
+  name: fr3_link5_accelerometer_top_joint
+  type: fixed
+  parent: fr3_link5
+  child: fr3_link5_accelerometer_top
+  origin xyz: -0.017363 0.085872 -0.00795
+  origin rpy: -1.5708 0 0
+  axis: 0 0 0
+  lower: NaN
+  upper: NaN
+  velocity: NaN
+  effort: NaN
+
+Joint 17
+  name: fr3_link5_accelerometer_bottom_joint
+  type: fixed
+  parent: fr3_link5
+  child: fr3_link5_accelerometer_bottom
+  origin xyz: -0.019742 0.082275 0.00146
+  origin rpy: 1.5708 1.5708 0
+  axis: 0 0 0
+  lower: NaN
+  upper: NaN
+  velocity: NaN
+  effort: NaN
+
+Joint 18
+  name: fr3_joint5
+  type: revolute
+  parent: fr3_link4
+  child: fr3_link5
+  origin xyz: -0.0825 0.384 0
+  origin rpy: -1.570796326794897 0 0
+  axis: 0 0 1
+  lower: -2.8763
+  upper: 2.8763
+  velocity: 5.26
+  effort: 12
+
+Joint 19
+  name: fr3_joint6
+  type: revolute
+  parent: fr3_link5
+  child: fr3_link6
+  origin xyz: 0 0 0
+  origin rpy: 1.570796326794897 0 0
+  axis: 0 0 1
+  lower: 0.4398
+  upper: 4.6216
+  velocity: 4.18
+  effort: 12
+
+Joint 20
+  name: fr3_joint7
+  type: revolute
+  parent: fr3_link6
+  child: fr3_link7
+  origin xyz: 0.08799999999999999 0 0
+  origin rpy: 1.570796326794897 0 0
+  axis: 0 0 1
+  lower: -3.0508
+  upper: 3.0508
+  velocity: 5.26
+  effort: 12
+
+Joint 21
+  name: fr3_joint8
+  type: fixed
+  parent: fr3_link7
+  child: fr3_link8
+  origin xyz: 0 0 0.107
+  origin rpy: 0 0 0
+  axis: 0 0 0
+  lower: NaN
+  upper: NaN
+  velocity: NaN
+  effort: NaN
+
+Joint 22
+  name: fr3_hand_joint
+  type: fixed
+  parent: fr3_link8
+  child: fr3_hand
+  origin xyz: 0 0 0
+  origin rpy: 0 0 -0.7853981633974483
+  axis: 0 0 0
+  lower: NaN
+  upper: NaN
+  velocity: NaN
+  effort: NaN
+
+Joint 23
+  name: fr3_hand_tcp_joint
+  type: fixed
+  parent: fr3_hand
+  child: fr3_hand_tcp
+  origin xyz: 0 0 0.1034
+  origin rpy: 0 0 0
+  axis: 0 0 0
+  lower: NaN
+  upper: NaN
+  velocity: NaN
+  effort: NaN
+
+Joint 24
+  name: fr3_finger_joint1
+  type: prismatic
+  parent: fr3_hand
+  child: fr3_leftfinger
+  origin xyz: 0 0 0.0584
+  origin rpy: 0 0 0
+  axis: 0 1 0
+  lower: 0
+  upper: 0.04
+  velocity: 0.2
+  effort: 100
+
+Joint 25
+  name: fr3_finger_joint2
+  type: prismatic
+  parent: fr3_hand
+  child: fr3_rightfinger
+  origin xyz: 0 0 0.0584
+  origin rpy: 0 0 3.141592653589793
+  axis: 0 1 0
+  lower: 0
+  upper: 0.04
+  velocity: 0.2
+  effort: 100
+
+Prompt cross-check for fr3_joint1..7 and fixed fr3_joint8: PASS
+The URDF values match the task specification for origins, axes and limits.

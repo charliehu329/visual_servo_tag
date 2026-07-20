@@ -11,6 +11,41 @@ cfg.cameraFps = 60;
 cfg.Ts = 1/cfg.cameraFps;
 cfg.stopTime = 30;
 
+% ROS 2接口与Python节点共用同一份YAML。
+rosYamlFile = fullfile(fileparts(fileparts(mfilename('fullpath'))), ...
+    'config','velocity_servo_tag.yaml');
+if ~isfile(rosYamlFile)
+    error('ROS2Interface:MissingYAML','Missing interface YAML: %s',rosYamlFile);
+end
+rosYamlText = fileread(rosYamlFile);
+readYamlString = @(key) regexp(rosYamlText, ...
+    ['(?m)^\s*' key ':\s*"([^"]+)"\s*$'], 'tokens', 'once');
+readYamlNumber = @(key) regexp(rosYamlText, ...
+    ['(?m)^\s*' key ':\s*([-+0-9.eE]+)\s*$'], 'tokens', 'once');
+
+yamlValue = readYamlString('vision_topic');
+cfg.ros2VisionTopic = yamlValue{1};
+yamlValue = readYamlString('joint_state_topic');
+cfg.ros2JointStateTopic = yamlValue{1};
+yamlValue = readYamlString('focal_state_topic');
+cfg.ros2FocalStateTopic = yamlValue{1};
+yamlValue = readYamlString('camera_velocity_topic');
+cfg.ros2CameraVelocityTopic = yamlValue{1};
+yamlValue = readYamlString('zoom_velocity_topic');
+cfg.ros2ZoomVelocityTopic = yamlValue{1};
+
+yamlValue = readYamlNumber('input_timeout_sec');
+cfg.ros2InputTimeoutSec = str2double(yamlValue{1});
+yamlValue = readYamlNumber('vision_message_length');
+cfg.ros2VisionMessageLength = str2double(yamlValue{1});
+yamlValue = readYamlNumber('focal_message_length');
+cfg.ros2FocalMessageLength = str2double(yamlValue{1});
+yamlValue = readYamlNumber('camera_velocity_message_length');
+cfg.ros2CameraVelocityMessageLength = str2double(yamlValue{1});
+yamlValue = readYamlNumber('zoom_velocity_message_length');
+cfg.ros2ZoomVelocityMessageLength = str2double(yamlValue{1});
+cfg.ros2InterfaceYamlFile = rosYamlFile;
+
 projectDir = fileparts(mfilename('fullpath'));
 fr3 = load_fr3_urdf_parameters(fullfile(projectDir,'fr3.urdf'), ...
     fullfile(projectDir,'fr3_urdf_parse_report.txt'));
