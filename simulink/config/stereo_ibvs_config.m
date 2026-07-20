@@ -31,26 +31,12 @@ if ~isfile(cfg.urdfPath)
         '找不到FR3 URDF文件：%s', cfg.urdfPath);
 end
 
-% importrobot出现"home position超出关节限位"的警告通常不是错误。
+% importrobot出现“home position超出关节限位”的警告通常不是错误。
 % 原因是部分FR3关节的默认零位不在其合法范围内，
 % MATLAB会自动把内部HomePosition调整到关节范围中心。
 cfg.robot = importrobot(cfg.urdfPath);
 cfg.robot.DataFormat = 'column';
 cfg.robot.Gravity = [0 0 -9.81];
-
-%% 移除夹爪手指关节
-% 代码作用：
-% 当前视觉伺服只控制FR3的7个机械臂关节。
-% URDF中的两个夹爪手指关节会使机器人模型变成9自由度，
-% 导致Get Jacobian输出6×9矩阵，因此这里移除两个手指分支。
-
-if any(strcmp(cfg.robot.BodyNames,'fr3_leftfinger'))
-    removeBody(cfg.robot,'fr3_leftfinger');
-end
-
-if any(strcmp(cfg.robot.BodyNames,'fr3_rightfinger'))
-    removeBody(cfg.robot,'fr3_rightfinger');
-end
 
 cfg.robotBaseName = cfg.robot.BaseName;
 cfg.cameraBodyName = 'left_camera_optical';
