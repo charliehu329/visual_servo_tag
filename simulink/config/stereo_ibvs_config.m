@@ -38,6 +38,22 @@ cfg.robot = importrobot(cfg.urdfPath);
 cfg.robot.DataFormat = 'column';
 cfg.robot.Gravity = [0 0 -9.81];
 
+% 视觉伺服只控制FR3的7个机械臂关节。
+% URDF中的两个夹爪手指为活动关节，如果保留会使Jacobian变成6×9。
+% 这里只移除左右手指分支，保留fr3_hand和fr3_link8等固定刚体。
+if any(strcmp(cfg.robot.BodyNames, 'fr3_leftfinger'))
+    removeBody(cfg.robot, 'fr3_leftfinger');
+end
+
+if any(strcmp(cfg.robot.BodyNames, 'fr3_rightfinger'))
+    removeBody(cfg.robot, 'fr3_rightfinger');
+end
+
+if numel(homeConfiguration(cfg.robot)) ~= 7
+    error('StereoIBVS:RobotDOFMismatch', ...
+        '移除夹爪手指分支后，FR3机器人模型仍不是7自由度。');
+end
+
 cfg.robotBaseName = cfg.robot.BaseName;
 cfg.cameraBodyName = 'left_camera_optical';
 cfg.cameraParentBodyName = 'fr3_link8';
