@@ -185,10 +185,10 @@ Stage 1 双目视觉节点代码已经完成：
 
 ## 下一步
 
-1. 在 Ubuntu 24.04 / ROS 2 Jazzy 上重新构建包，验证新 launch 参数和 `full_system.launch.py`；
-2. 设置左右相机 ID，验证两台 USB 相机、实际检测帧率和输出 Topic；
-3. 将 `vision_double_node` 与 Simulink 联合运行，并采集真实 `/franka/joint_states` 核对关节顺序；
-4. 使用真实 ROS 2 发布器验证 Joint/Vision 断流、三帧丢失和三帧恢复时序；
+1. 按 README 的实验顺序，对全部代码、Launch、Topic、配置和安全链路进行一次实验前全面检查；
+2. 在 Ubuntu 24.04 / ROS 2 Jazzy 上重新构建包，验证 Launch 参数和 `full_system.launch.py`；
+3. 设置左右相机 ID，验证两台 USB 相机、实际检测帧率和输出 Topic；
+4. 将 `vision_double_node` 与 Simulink 联合运行，并采集真实 `/franka/joint_states` 核对关节顺序；
 5. 完成真实标定后，对接 Python 最终安全转发链路并进行零速到低速真机验证。
 
 # 工作日志
@@ -288,6 +288,19 @@ memory.md
 配置：JointState 和 Vision 超时均为 `0.10 s`，目标判断只使用左相机。整理离线生成脚本路径和函数名，并将 Python、ROS 2、MATLAB/Simulink 和 macOS 缓存统一加入 `.gitignore`。
 
 验证：包装模型通过 MATLAB R2025b Update Diagram；临时动态 Simulink 测试验证第 3 帧丢失停机、连续 3 帧恢复、Vision 超时、JointState 超时和人工复位；项目文件未进行真实 ROS 2 双相机或 FR3 非零运动测试。
+
+## 2026-07-22：按实验流程精简重写 README
+
+修改文件：
+
+```text
+README.md
+memory.md
+```
+
+完成内容：按照“概述、项目框架、部署、运行、数据流向、ROS 2 接口、配置、安全、分阶段目标、测试”的结构重写 README；将编译和 source 命令分开，补充四个 Launch 的启动示例、全部可传入参数，以及标明节点、Simulink、Topic 和消息尺寸的 Mermaid 数据流图；测试章节按双相机、零速度全链路、JointState、标定和 FR3 低速实验排列。
+
+下一项工作：开始实验前全面检查，确认代码和配置是否适合按照 README 的测试顺序进入真实设备实验。
 
 # 实现计划
 
