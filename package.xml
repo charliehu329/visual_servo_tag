@@ -11,10 +11,10 @@
   <version>0.2.0</version>
 
   <description>
-    Complete AprilTag and Simulink visual-servo package for
-    Franka Research 3, including camera detection, Cartesian-to-joint
-    velocity mapping, safety watchdogs, Franka hardware bringup,
-    and joint velocity command forwarding.
+    Stereo AprilTag and Simulink visual-servo package for Franka
+    Research 3, including dual-camera detection, Simulink joint
+    velocity control, safety watchdogs, hardware bringup, and final
+    joint velocity command forwarding.
   </description>
 
   <maintainer email="harry@todo.todo">

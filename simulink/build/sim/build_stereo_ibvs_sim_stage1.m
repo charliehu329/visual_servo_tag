@@ -1,4 +1,4 @@
-function build_stereo_ibvs_sim_stage1_clean(projectDir)
+function build_stereo_ibvs_sim_stage1(projectDir)
 % 代码作用：
 % 只生成Stage 1离线仿真模型stereo_ibvs_sim_stage1.slx。
 % 本脚本只读取stereo_ibvs_core.slx和stereo_ibvs_config.m，
@@ -6,19 +6,19 @@ function build_stereo_ibvs_sim_stage1_clean(projectDir)
 %
 % 输入参数含义：
 % projectDir：
-% simulink_new工程目录。可以省略，脚本会自动查找。
+% simulink工程目录。可以省略，脚本会根据当前脚本位置自动查找。
 %
 % 输出参数含义：
 % 本函数没有输出参数。
 % 成功后只生成：
-% simulink_new/sim/stereo_ibvs_sim_stage1.slx
+% simulink/sim/stereo_ibvs_sim_stage1.slx
 
 if nargin < 1
     projectDir = '';
 end
 
 %% 1. 查找core和config
-[projectDir, coreFile, configFile, simDir] = ...
+[~, coreFile, configFile, simDir] = ...
     locateProjectFiles(projectDir);
 
 coreDir = fileparts(coreFile);
@@ -874,6 +874,7 @@ end
 candidateRoots = [candidateRoots, {
     scriptDir
     fileparts(scriptDir)
+    fileparts(fileparts(scriptDir))
     pwd
     fileparts(pwd)
 }];

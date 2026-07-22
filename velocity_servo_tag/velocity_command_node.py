@@ -7,7 +7,7 @@ velocity_command_node.py
     加速度限制和通信超时保护，然后发送给 Franka 底层速度控制器。
 
 订阅：
-    /velocity_mapper_node/target_joints_velocities
+    /simulink/target_joints_velocities
         std_msgs/msg/Float64MultiArray
         [dq1, dq2, dq3, dq4, dq5, dq6, dq7]
 
@@ -74,7 +74,7 @@ class VelocityCommandNode(Node):
 
         self.declare_parameter(
             "input_topic",
-            "/velocity_mapper_node/target_joints_velocities",
+            "/simulink/target_joints_velocities",
         )
 
         self.declare_parameter(

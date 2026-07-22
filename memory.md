@@ -34,25 +34,31 @@ visual_servo_tag/
 ├── launch/
 │   ├── fr3_hardware.launch.py
 │   ├── full_system.launch.py
+│   ├── vision_double.launch.py
 │   └── velocity_servo_tag.launch.py
 ├── simulink/
+│   ├── build/
+│   │   └── sim/build_stereo_ibvs_sim_stage1.m
 │   ├── config/
-│   │   ├── stereo_ibvs_config.m
-│   │   └── urdf/fr3.urdf
+│   │   └── stereo_ibvs_config.m
 │   ├── core/
-│   │   ├── stereo_ibvs_core.slx
-│   │   └── stereo_ibvs_core.slxc
+│   │   └── stereo_ibvs_core.slx
 │   ├── ros2/
 │   │   └── stereo_ibvs_ros2_stage1.slx
 │   └── sim/
-│       └── build_stereo_ibvs_sim_stage1.m
+│       ├── stereo_ibvs_sim_stage1.slx
+│       └── plot_stereo_ibvs_sim_stage1_results.m
 ├── velocity_servo_tag/
 │   ├── robot_kinematics.py
 │   ├── safety.py
 │   ├── velocity_command_node.py
 │   └── vision/
 │       ├── apriltag_detector.py
-│       └── camera.py
+│       ├── camera.py
+│       ├── stereo_features.py
+│       └── vision_double_node.py
+├── test/
+│   └── test_stereo_features.py
 ├── package.xml
 ├── setup.cfg
 └── setup.py
@@ -62,9 +68,9 @@ visual_servo_tag/
 
 - `simulink/core/`：不直接收发 ROS 2 消息的统一核心算法；
 - `simulink/ros2/`：ROS 2 包装模型，通过 Model 块引用同一个 core；
-- `simulink/sim/`：已有 Stage 1 离线模型生成脚本，目标 `.slx` 尚未生成和验证；
-- 当前不需要单独维护 `simulink/build/`；
-- `*.slxc`、`slprj/` 和 `*.asv` 是缓存或自动保存文件，不是核心源文件。
+- `simulink/build/`：可重复生成模型的 MATLAB 脚本；
+- `simulink/sim/`：Stage 1 离线仿真模型和结果绘图脚本；
+- `*.slxc`、`slprj/`、`*.autosave`、`*.asv` 和 ROS 总线转换文件是自动生成缓存，已经加入 `.gitignore`。
 
 # 已完成的文件状态
 
@@ -116,14 +122,13 @@ controllerStatus       12×1
 
 ## `simulink/ros2/stereo_ibvs_ros2_stage1.slx`
 
-Stage 1 ROS 2 包装模型已经完成，并通过多次短时测试。Model 块接口与 core 的 `5` 个输入、`3` 个输出一致，ROS 2 消息收发已经验证；尚未与真实双目相机进行联合实验。
+Stage 1 ROS 2 包装模型已经完成。Model 块接口与 core 的 `5` 个输入、`3` 个输出一致，包装模型使用 `4` 个 ROS 2 订阅和 `3` 个发布；消息收发已经验证，尚未与真实双目相机进行联合实验。
 
 | 方向 | Topic | 消息类型 / 有效维度 |
 |---|---|---|
 | 订阅 | `/franka/joint_states` | `sensor_msgs/JointState`，当前取 `position` 前 7 项 |
 | 订阅 | `/vision_double/target_features` | `std_msgs/Float64MultiArray`，8 维 |
 | 订阅 | `/vision_double/zoom_position_steps` | `std_msgs/Float64MultiArray`，2 维 |
-| 订阅 | `/simulink/controller_enable` | `std_msgs/Bool` |
 | 订阅 | `/simulink/reset` | `std_msgs/Bool`，新消息且为 true 时产生单采样复位脉冲 |
 | 发布 | `/simulink/target_joints_velocities` | `std_msgs/Float64MultiArray`，7 维 |
 | 发布 | `/simulink/zoom_step_rate_cmd` | `std_msgs/Float64MultiArray`，2 维 |
@@ -131,31 +136,60 @@ Stage 1 ROS 2 包装模型已经完成，并通过多次短时测试。Model 块
 
 已实现关节/视觉/变焦数组最小长度 `7/8/2` 检查；长度不满足时禁止控制。三个输出按 ROS 总线的 128 元素缓存生成，并设置正确的有效长度。
 
+ROS 输入安全监督已经完成：
+
+- 使用 JointState 和 Vision Subscribe 的 `IsNew` 监控新鲜度，超时均为 `0.10 s`；
+- Stage 1 仅以左相机 `validL` 判断目标是否丢失，右相机不触发停车；
+- 运行中连续第 3 帧左目标无效时关闭内部使能，短暂丢失期间保持最后一次合法视觉特征；
+- 初始启动和故障恢复均要求连续 3 帧左目标有效；
+- 从使能切换到停止时自动产生一次 Core 复位脉冲；人工 `/simulink/reset` 还会清除监督器保存的视觉特征和计数；
+- `/simulink/controller_enable` 已删除，内部使能完全由包装模型自动生成；
+- Simulink 只负责切换到零目标，最终平滑减速由 Python `velocity_command_node` 的 `0.20 rad/s²` 加速度限制完成。
+
+MATLAB R2025b Update Diagram 和临时动态测试均通过；动态测试覆盖三帧丢失、三帧恢复、Vision 超时、JointState 超时和人工复位。
+
 ## `simulink/config/stereo_ibvs_config.m`
 
 已移除机器人模型中的 `fr3_leftfinger` 和 `fr3_rightfinger` 分支，Jacobian 已由错误的 `6×9` 修正为 `6×7`，并增加 7 自由度检查。
 
 ## Python ROS 2 节点
 
-当前保留单目视觉检测、通用安全函数和 `velocity_command_node`。`velocity_mapper_node.py` 已删除，Stage 1 关节速度由 Simulink 直接计算；setup、launch 和 YAML 中的旧 Mapper 配置尚待下一步统一清理。
+当前保留单目/双目视觉检测、通用安全函数和 `velocity_command_node`。`velocity_mapper_node.py` 已删除，Stage 1 关节速度由 Simulink 直接计算。setup、launch、YAML 和 Python 默认 Topic 中的旧 Mapper 配置已经清理。
+
+`full_system.launch.py` 当前组合 `vision_double_node` 和可选 FR3 硬件链路；默认 `start_hardware:=false`、`command_mode:=zero`。MATLAB/Simulink 仍需单独运行。
+
+### `velocity_servo_tag/vision/vision_double_node.py`
+
+Stage 1 双目视觉节点代码已经完成：
+
+- 左右普通 USB 相机 ID、分辨率和帧率由 YAML 配置，默认 `640×480 @ 60 Hz`；
+- 左右相机各使用独立采集线程和独立 AprilTag 检测器；
+- 发布 `/vision_double/target_features`：`[validL; validR; uL; vL; uR; vR; scaleL; scaleR]`；
+- `scale` 定义为 AprilTag 四角像素面积的平方根；
+- 检测结果超时后对应侧 `valid` 置零；双目时间差超限时较旧一侧置零；
+- 以目标 `60 Hz` 发布 `/vision_double/zoom_position_steps = [0;0]`，仅作为 Stage 1 占位，不控制电机；
+- 已增加 `vision_double.launch.py`、YAML 参数、setup 入口和 6 项纯算法单元测试。
+
+代码语法和纯算法测试已经通过；尚未连接两台真实 USB 相机验证实际帧率、设备 ID 和 USB 带宽。
 
 ## 当前限制
 
 - 真实标定许可仍为 `false`，所以安全模块会把实际关节速度锁为零；
-- ROS 2 输入尚无新鲜度/超时 watchdog，断流后 Subscribe 块会保留上一条消息；
 - `JointState.position` 尚未根据 `JointState.name` 重排，真机前必须核对关节顺序；
+- Stage 1 目标丢失只监控左相机，右相机仅用于数据记录和诊断；
 - ROS 2 块当前 QoS 为 Reliable、Volatile、Keep last、Depth 10，联调时需确认发布端兼容；
-- `setup.py`、launch 和 YAML 中仍有已删除 Mapper 的遗留配置，尚未清理；
 - 全新 MATLAB 会话首次加载时可能先提示找不到 core，模型 PostLoad 加入路径后执行 Ctrl+D 可以通过；
-- ROS 2 通信已经验证，但尚未与真实双目相机联合运行。
+- ROS 2 通信已经验证，但新双目节点尚未与真实双相机和 Simulink 联合运行；
+- 普通 USB 相机没有硬件同步，当前使用软件单调时钟检查双目检测时间差；
+- Zoom 位置当前固定为 `[0;0]`，没有真实位置反馈。
 
 ## 下一步
 
-1. 清理 `setup.py`、launch 和 YAML 中失效的 Mapper 配置；
-2. 将真实双目相机输出接入 `/vision_double/target_features` 和变焦位置 Topic；
-3. 采集真实 `/franka/joint_states`，确认前 7 项顺序或增加按名称重排；
-4. 创建并验证 `simulink/sim/stereo_ibvs_sim_stage1.slx` 离线仿真包装；
-5. 真机前加入 ROS 输入 freshness/watchdog，再对接 Python 最终安全转发链路。
+1. 在 Ubuntu 24.04 / ROS 2 Jazzy 上重新构建包，验证新 launch 参数和 `full_system.launch.py`；
+2. 设置左右相机 ID，验证两台 USB 相机、实际检测帧率和输出 Topic；
+3. 将 `vision_double_node` 与 Simulink 联合运行，并采集真实 `/franka/joint_states` 核对关节顺序；
+4. 使用真实 ROS 2 发布器验证 Joint/Vision 断流、三帧丢失和三帧恢复时序；
+5. 完成真实标定后，对接 Python 最终安全转发链路并进行零速到低速真机验证。
 
 # 工作日志
 
@@ -195,16 +229,76 @@ memory.md
 
 备注：同步将实际关节速度输出 Topic 修正为 `/simulink/target_joints_velocities`，采样周期修正为 `1/120 s`，并记录 ROS 通信已经验证、双目相机联合实验尚未完成。Mapper 遗留配置将在下一步单独清理。
 
+## 2026-07-22：完成 Stage 1 双目视觉节点和 Zoom 零占位
+
+修改文件：
+
+```text
+velocity_servo_tag/vision/stereo_features.py
+velocity_servo_tag/vision/vision_double_node.py
+launch/vision_double.launch.py
+config/velocity_servo_tag.yaml
+setup.py
+test/test_stereo_features.py
+README.md
+memory.md
+```
+
+完成内容：实现左右 USB 相机独立采集和 AprilTag 检测，发布 8 维双目特征；加入检测新鲜度和双目时间差检查；以 60 Hz 目标频率发布 `[0;0]` Zoom 位置占位；增加 YAML、launch、安装入口、README 使用说明和纯算法测试。
+
+验证：新增 Python 文件和 launch 通过语法检查；尺度、有效双目、检测超时、双目时间差和 Zoom 占位共 6 项单元测试通过。
+
+备注：当前没有 Zoom 电机控制；真实双 USB 相机、实际 60 Hz 性能和 Simulink 联合运行仍待 Ubuntu 24.04 / ROS 2 Jazzy 环境验证。
+
+## 2026-07-22：清理 Mapper 遗留配置并重构完整启动入口
+
+修改文件：
+
+```text
+setup.py
+package.xml
+config/velocity_servo_tag.yaml
+launch/velocity_servo_tag.launch.py
+launch/full_system.launch.py
+velocity_servo_tag/velocity_command_node.py
+README.md
+memory.md
+```
+
+完成内容：删除已不存在的 Mapper executable 和整段 YAML 参数；将 `velocity_command_node` 默认输入统一为 `/simulink/target_joints_velocities`；将 YAML 中 Simulink 接口记录同步为 `1/120 s` 和实际关节速度 Topic；上层 launch 改为启动 `vision_double_node`；`full_system.launch.py` 改为组合双目视觉和可选 FR3 硬件链路。
+
+默认安全行为：`start_hardware:=false`、`start_vision:=true`、`command_mode:=zero`。Simulink 仍需单独启动，非零真机运动仍受标定、JointState 顺序和输入 watchdog 限制。
+
+## 2026-07-22：加入 Stage 1 ROS 输入安全监督并整理工程缓存
+
+修改文件：
+
+```text
+.gitignore
+simulink/config/stereo_ibvs_config.m
+simulink/ros2/stereo_ibvs_ros2_stage1.slx
+simulink/build/sim/build_stereo_ibvs_sim_stage1.m
+config/velocity_servo_tag.yaml
+README.md
+memory.md
+```
+
+完成内容：删除外部 `/simulink/controller_enable`，由包装模型根据 Joint/Vision freshness、数组长度和左相机 `validL` 自动产生内部使能；加入连续 3 帧丢失停止、连续 3 帧有效恢复、合法视觉保持和故障单脉冲复位；保留人工 `/simulink/reset`。平滑停车继续由 Python 最终命令节点负责，不在 Simulink 重复实现加速度限制。
+
+配置：JointState 和 Vision 超时均为 `0.10 s`，目标判断只使用左相机。整理离线生成脚本路径和函数名，并将 Python、ROS 2、MATLAB/Simulink 和 macOS 缓存统一加入 `.gitignore`。
+
+验证：包装模型通过 MATLAB R2025b Update Diagram；临时动态 Simulink 测试验证第 3 帧丢失停机、连续 3 帧恢复、Vision 超时、JointState 超时和人工复位；项目文件未进行真实 ROS 2 双相机或 FR3 非零运动测试。
+
 # 实现计划
 
 说明：如果有分步实行的stage1，2，3，可以记录
 
-- Stage 1：固定内参与固定深度的左相机中心 IBVS。core、ROS 2 包装和消息收发验证已完成；双目相机联合实验、离线仿真和硬件接入未完成。
+- Stage 1：固定内参与固定深度的左相机中心 IBVS。core、ROS 2 包装、消息收发、双目视觉节点和 ROS 输入安全监督已完成；真实双相机联合实验、标定和硬件接入未完成。
 - Stage 2：加入双目逆深度滤波与深度闭环任务。
 - Stage 3：加入关节限位零空间任务和任务优先级控制。
 - Stage 4：加入世界坐标系 9 状态目标 EKF `[p; v; a]` 和目标速度前馈。
 - Stage 5：加入双目主动变焦，将累计步数通过标定曲线转换为焦距和相机内参，并处理回零、限位和编码器反馈。
-- Stage 6：加入预测、时延补偿、目标丢失处理、超时保护、平滑/变化率限制、奇异性监控、恢复流程和真机验证。
+- Stage 6：加入预测、时延补偿、更完整的故障恢复、奇异性监控和真机验证。
 
 # 配置文件
 
@@ -212,16 +306,16 @@ memory.md
 
 | 文件 | 作用 |
 |---|---|
-| `config/velocity_servo_tag.yaml` | Python 检测节点和最终关节速度命令节点的 Topic、watchdog、发布频率及安全限制参数 |
+| `config/velocity_servo_tag.yaml` | 单目/双目检测节点和最终关节速度命令节点的 Topic、相机、watchdog、发布频率及安全限制参数 |
 | `config/controllers.yaml` | `ros2_control` 控制器配置 |
-| `simulink/config/stereo_ibvs_config.m` | Simulink 的采样时间、FR3 模型、相机参数、控制增益、阻尼、软限位、安全阈值和阶段参数 |
+| `simulink/config/stereo_ibvs_config.m` | Simulink 的采样时间、FR3 模型、相机参数、控制增益、阻尼、软限位、Joint/Vision 超时、目标丢失/恢复帧数和阶段参数 |
 | `config/urdf/fr3.urdf` | `stereo_ibvs_config.m` 当前实际加载的 FR3 模型 |
-| `simulink/config/urdf/fr3.urdf` | Simulink 目录内的 URDF 副本，目前不是配置脚本实际加载路径 |
 
 配置关系：
 
 - Simulink 的主要工作区参数由 `stereo_ibvs_config.m` 设置；模型块内部仍可能包含自身参数；
 - Python 节点读取 `velocity_servo_tag.yaml`，Simulink `.slx` 当前不会读取这个 YAML；
-- YAML 中现有 `simulink_ros2` 段只是接口记录，不会自动创建或修改 Simulink 接口；其中旧关节速度 Topic 尚待下一步清理；
+- YAML 中现有 `simulink_ros2` 段只是接口记录，不会自动创建或修改 Simulink 接口；当前记录已与 `.slx` 的 `1/120 s` 和 `/simulink/target_joints_velocities` 对齐；
+- ROS 包装安全参数实际由 `stereo_ibvs_config.m` 加载：Joint/Vision 超时 `0.10 s`、丢失 `3` 帧停止、恢复 `3` 帧使能，目标来源为左相机 `validL`；
 - 当前 `cameraMountCalibrated`、`cameraIntrinsicsCalibrated`、`stereoCalibrationValid` 和 `zoomCalibrationValid` 均为 `false`；
 - 后续手眼、双目和变焦标定结果计划独立保存在 `simulink/calibration/`。

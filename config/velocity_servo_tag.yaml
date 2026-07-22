@@ -1,6 +1,49 @@
 # velocity_servo_tag.yaml
 #
-# AprilTag检测、相机速度映射和Franka关节速度命令节点的统一配置。
+# 单目/双目AprilTag检测和Franka关节速度命令节点的统一配置。
+
+
+vision_double_node:
+  ros__parameters:
+    # 左右USB相机编号，部署前根据/dev/video*实际映射修改。
+    left_camera_index: 0
+    right_camera_index: 1
+
+    camera_width: 640
+    camera_height: 480
+    camera_fps: 60.0
+
+    # ROS 2特征和Zoom占位消息的目标发布频率。
+    publish_rate_hz: 60.0
+
+    tag_family: "tag36h11"
+    target_tag_id: 0
+
+    # 左右相机各自创建一个检测器。
+    detector_threads_per_camera: 2
+    quad_decimate: 1.0
+    quad_sigma: 0.0
+    refine_edges: true
+    decode_sharpening: 0.25
+
+    # 一阶低通滤波系数，1.0表示不滤波。
+    uv_filter_alpha: 0.4
+
+    # 检测结果超过该时间后，对应valid自动置零。
+    feature_timeout_sec: 0.10
+
+    # 左右有效结果时间差过大时，较旧一侧valid置零。
+    max_pair_skew_sec: 0.05
+
+    # USB相机打开失败后的重试间隔。
+    camera_reopen_delay_sec: 2.0
+
+    target_features_topic: "/vision_double/target_features"
+    zoom_position_topic: "/vision_double/zoom_position_steps"
+
+    # Stage 1节点会固定发布[0.0, 0.0] Zoom位置，不控制电机。
+    # 是否显示左右相机OpenCV预览窗口。
+    show_window: true
 
 
 apriltag_detector:
@@ -27,81 +70,10 @@ apriltag_detector:
     show_window: true
 
 
-velocity_mapper_node:
-  ros__parameters:
-    # 留空时使用本包config/urdf/fr3.urdf。
-    urdf_path: ""
-
-    # 必须与URDF中的末端帧名称一致。
-    end_effector_frame: "fr3_link8"
-
-    # 相机速度到末端速度的手眼变换。
-    #
-    # 当前单位阵仅为占位值，实机非零运动前必须替换为标定结果。
-    T_end_effector_camera:
-      - 1.0
-      - 0.0
-      - 0.0
-      - 0.0
-      - 0.0
-      - 1.0
-      - 0.0
-      - 0.0
-      - 0.0
-      - 0.0
-      - 1.0
-      - 0.0
-      - 0.0
-      - 0.0
-      - 0.0
-      - 1.0
-
-    # Jacobian阻尼最小二乘系数。
-    damping: 0.02
-
-    # Python速度映射和关节命令计算频率。
-    publish_rate_hz: 120.0
-
-    # 0表示不限制运行总时长。
-    duration_sec: 0.0
-
-    # 默认不向下游发送关节速度。
-    dry_run: true
-
-    joint_state_topic: "/franka/joint_states"
-    visual_velocity_topic: "/simulink/camera_velocity"
-
-    # velocity_mapper_node发布的关节速度,velocity_command_node订阅。
-    command_topic: "/velocity_mapper_node/target_joints_velocities"
-
-    # mapper层关节速度限制，单位rad/s。
-    max_joint_velocities:
-      - 0.05
-      - 0.05
-      - 0.05
-      - 0.05
-      - 0.05
-      - 0.05
-      - 0.05
-
-    # mapper层关节加速度限制，单位rad/s²。
-    max_joint_accelerations:
-      - 0.20
-      - 0.20
-      - 0.20
-      - 0.20
-      - 0.20
-      - 0.20
-      - 0.20
-
-    visual_velocity_timeout_sec: 0.20
-    joint_state_timeout_sec: 0.10
-
-
 velocity_command_node:
   ros__parameters:
     # 默认zero最安全。
-    # 真正接收mapper速度时由launch覆盖为topic。
+    # 真正接收Simulink关节速度时由launch覆盖为topic。
     mode: "zero"
 
     publish_rate_hz: 120.0
@@ -119,10 +91,10 @@ velocity_command_node:
       - 0.20
       - 0.20
 
-    # mapper崩溃或停止发布后，超过此时间开始平滑减速。
+    # Simulink停止发布后，超过此时间开始平滑减速。
     target_velocity_timeout_sec: 0.15
 
-    # 这里我们改成simulink直接发布关节速度
+    # Simulink直接发布七维关节速度。
     input_topic: "/simulink/target_joints_velocities"
     command_topic: "/joint_velocity_example_controller/commands"
 
@@ -131,19 +103,22 @@ velocity_command_node:
 # 这里集中记录接口约定；topic修改后需同步修改SLX中的ROS 2 Block。
 simulink_ros2:
   ros__parameters:
-    sample_time_sec: 0.016666666666666666
+    sample_time_sec: 0.008333333333333333
     vision_topic: "/vision_double/target_features"
     joint_state_topic: "/franka/joint_states"
     zoom_position_topic: "/vision_double/zoom_position_steps"
-    controller_enable_topic: "/simulink/controller_enable"
     reset_topic: "/simulink/reset"
 
-    joint_velocity_topic: "/velocity_mapper_node/target_joints_velocities"
+    joint_velocity_topic: "/simulink/target_joints_velocities"
     zoom_step_rate_topic: "/simulink/zoom_step_rate_cmd"
     controller_status_topic: "/simulink/controller_status"
 
-    # Stage 1尚未实现消息超时watchdog，保留为后续阶段目标值。
-    input_timeout_sec: 0.20
+    # 这些数值由stereo_ibvs_config.m实际加载；此处只记录接口约定。
+    joint_state_timeout_sec: 0.10
+    vision_timeout_sec: 0.10
+    target_loss_frame_limit: 3
+    target_recovery_frame_count: 3
+    target_valid_source: "validL"
 
     vision_message_length: 8
     joint_position_message_length: 7

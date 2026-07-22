@@ -7,7 +7,7 @@
 
 %% 路径
 % 当前脚本建议放在：
-% simulink_new/config/stereo_ibvs_config.m
+% simulink/config/stereo_ibvs_config.m
 projectDir = fileparts(fileparts(mfilename('fullpath')));
 repoDir = fileparts(projectDir);
 
@@ -193,6 +193,16 @@ cfg.lambdaC = 0.03;
 
 % 默认关闭控制器。
 cfg.controllerEnableDefault = 0;
+
+%% Stage 1 ROS输入安全监督
+% JointState和视觉Topic超过该时间没有新消息时，自动关闭内部使能。
+cfg.jointStateTimeoutSec = 0.10;
+cfg.visionTimeoutSec = 0.10;
+
+% Stage 1只使用左相机中心任务，因此目标丢失仅由validL判断。
+% 连续丢失3帧后停止；恢复时连续有效3帧后重新使能。
+cfg.targetLossFrameLimit = 3;
+cfg.targetRecoveryFrameCount = 3;
 
 %% Simulink算法层安全限制
 % 各关节最大算法输出速度，单位rad/s。

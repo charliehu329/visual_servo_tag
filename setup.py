@@ -103,9 +103,9 @@ setup(
                 "apriltag_detector:main"
             ),
             (
-                "velocity_mapper_node = "
-                "velocity_servo_tag."
-                "velocity_mapper_node:main"
+                "vision_double_node = "
+                "velocity_servo_tag.vision."
+                "vision_double_node:main"
             ),
             (
                 "velocity_command_node = "

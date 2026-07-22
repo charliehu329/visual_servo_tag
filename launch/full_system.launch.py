@@ -2,32 +2,27 @@
 """
 full_system.launch.py
 
-启动指令：
-ros2 launch velocity_servo_tag full_system.launch.py \
-  start_hardware:=false \
-  dry_run:=true \
-  command_mode:=zero
+功能：
+    组合Stage 1双目视觉节点、可选Franka硬件、底层关节速度控制器
+    和velocity_command_node，作为当前系统的统一ROS 2启动入口。
 
-完整系统启动入口：
+输入：
+    start_vision：是否启动vision_double_node。
+    start_hardware：是否启动真实FR3硬件和velocity_command_node。
+    command_mode：velocity_command_node使用zero或topic模式。
+    robot_ip、load_gripper、use_rviz、max_velocity_scale、params_file。
 
-    Franka硬件
-        → 底层关节速度控制器
-        → velocity_command_node
-        → AprilTag detector
-        → Simulink
-        → velocity_mapper_node
+输出：
+    视觉Topic、FR3状态Topic和底层关节速度控制器命令。
 
-默认安全设置：
+调用：
+    安全通信测试：
+    ros2 launch velocity_servo_tag full_system.launch.py \
+      start_hardware:=false start_vision:=true command_mode:=zero
 
-    start_hardware:=false
-    dry_run:=true
-    command_mode:=zero
-
-实机控制必须同时显式设置：
-
-    start_hardware:=true
-    dry_run:=false
-    command_mode:=topic
+方法：
+    包含velocity_servo_tag.launch.py和fr3_hardware.launch.py。
+    默认不启动真实硬件，并保持zero模式。MATLAB/Simulink仍需单独运行。
 """
 
 from launch import LaunchDescription
@@ -47,26 +42,20 @@ from launch_ros.substitutions import FindPackageShare
 
 
 def generate_launch_description():
-    # =========================================================
-    # Launch参数
-    # =========================================================
+    """创建Stage 1完整ROS 2系统LaunchDescription。"""
 
     robot_ip = LaunchConfiguration("robot_ip")
     load_gripper = LaunchConfiguration("load_gripper")
     use_rviz = LaunchConfiguration("use_rviz")
-
     start_hardware = LaunchConfiguration(
         "start_hardware"
     )
-    start_detector = LaunchConfiguration(
-        "start_detector"
+    start_vision = LaunchConfiguration(
+        "start_vision"
     )
-
-    dry_run = LaunchConfiguration("dry_run")
     command_mode = LaunchConfiguration(
         "command_mode"
     )
-
     max_velocity_scale = LaunchConfiguration(
         "max_velocity_scale"
     )
@@ -74,28 +63,21 @@ def generate_launch_description():
         "params_file"
     )
 
-    # =========================================================
-    # 参数声明
-    # =========================================================
-
     declare_robot_ip = DeclareLaunchArgument(
         "robot_ip",
         default_value="172.16.0.2",
         description="Franka FR3 IP address.",
     )
-
     declare_load_gripper = DeclareLaunchArgument(
         "load_gripper",
         default_value="false",
         description="Load Franka Hand gripper.",
     )
-
     declare_use_rviz = DeclareLaunchArgument(
         "use_rviz",
         default_value="false",
         description="Start RViz2.",
     )
-
     declare_start_hardware = DeclareLaunchArgument(
         "start_hardware",
         default_value="false",
@@ -103,24 +85,13 @@ def generate_launch_description():
             "Start the real Franka hardware stack."
         ),
     )
-
-    declare_start_detector = DeclareLaunchArgument(
-        "start_detector",
+    declare_start_vision = DeclareLaunchArgument(
+        "start_vision",
         default_value="true",
         description=(
-            "Start the USB AprilTag detector."
+            "Start the dual-camera AprilTag node."
         ),
     )
-
-    declare_dry_run = DeclareLaunchArgument(
-        "dry_run",
-        default_value="true",
-        description=(
-            "Do not publish mapper joint commands "
-            "when true."
-        ),
-    )
-
     declare_command_mode = DeclareLaunchArgument(
         "command_mode",
         default_value="zero",
@@ -128,7 +99,6 @@ def generate_launch_description():
             "Bottom command mode: zero or topic."
         ),
     )
-
     declare_max_velocity_scale = (
         DeclareLaunchArgument(
             "max_velocity_scale",
@@ -149,7 +119,6 @@ def generate_launch_description():
             "velocity_servo_tag.yaml",
         ]
     )
-
     declare_params_file = DeclareLaunchArgument(
         "params_file",
         default_value=default_params_file,
@@ -157,10 +126,6 @@ def generate_launch_description():
             "Unified velocity_servo_tag YAML file."
         ),
     )
-
-    # =========================================================
-    # Franka硬件子系统
-    # =========================================================
 
     hardware_launch_file = PathJoinSubstitution(
         [
@@ -171,30 +136,24 @@ def generate_launch_description():
             "fr3_hardware.launch.py",
         ]
     )
-
     hardware_system = IncludeLaunchDescription(
         PythonLaunchDescriptionSource(
             hardware_launch_file
         ),
-        condition=IfCondition(
-            start_hardware
-        ),
+        condition=IfCondition(start_hardware),
         launch_arguments={
             "robot_ip": robot_ip,
             "load_gripper": load_gripper,
             "use_rviz": use_rviz,
             "command_mode": command_mode,
-            "max_velocity_scale":
-                max_velocity_scale,
+            "max_velocity_scale": (
+                max_velocity_scale
+            ),
             "params_file": params_file,
         }.items(),
     )
 
-    # =========================================================
-    # AprilTag和速度映射子系统
-    # =========================================================
-
-    servo_launch_file = PathJoinSubstitution(
+    vision_launch_file = PathJoinSubstitution(
         [
             FindPackageShare(
                 "velocity_servo_tag"
@@ -203,21 +162,15 @@ def generate_launch_description():
             "velocity_servo_tag.launch.py",
         ]
     )
-
-    servo_system = IncludeLaunchDescription(
+    vision_system = IncludeLaunchDescription(
         PythonLaunchDescriptionSource(
-            servo_launch_file
+            vision_launch_file
         ),
         launch_arguments={
             "params_file": params_file,
-            "dry_run": dry_run,
-            "start_detector": start_detector,
+            "start_vision": start_vision,
         }.items(),
     )
-
-    # =========================================================
-    # 返回完整系统
-    # =========================================================
 
     return LaunchDescription(
         [
@@ -225,13 +178,11 @@ def generate_launch_description():
             declare_load_gripper,
             declare_use_rviz,
             declare_start_hardware,
-            declare_start_detector,
-            declare_dry_run,
+            declare_start_vision,
             declare_command_mode,
             declare_max_velocity_scale,
             declare_params_file,
-
             hardware_system,
-            servo_system,
+            vision_system,
         ]
     )

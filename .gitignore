@@ -1,5 +1,41 @@
+# macOS
+.DS_Store
+
+# Python缓存、测试和本地虚拟环境
 __pycache__/
 *.py[cod]
-install/
-log/
+*$py.class
 .pytest_cache/
+.coverage
+.coverage.*
+htmlcov/
+.mypy_cache/
+.ruff_cache/
+.tox/
+.nox/
+.venv/
+venv/
+env/
+dist/
+*.egg-info/
+
+# ROS 2 / colcon生成目录（仅忽略仓库根目录，不影响simulink/build源码）
+/build/
+/install/
+/log/
+
+# MATLAB / Simulink缓存、自动保存和生成代码
+**/slprj/
+*.slxc
+*.slx.autosave
+*.autosave
+*.asv
+*.mex*
+**/sccprj/
+**/codegen/
+**/*_ert_rtw/
+**/*_grt_rtw/
+**/*_slrt_rtw/
+
+# MATLAB ROS Toolbox自动生成的消息总线转换缓存
+simulink/**/+bus_conv_fcns/
