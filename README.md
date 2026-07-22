@@ -374,6 +374,42 @@ flowchart LR
 
 ## 7. 配置文件
 
+### 7.1 首次使用需要配置的参数
+
+| 参数 | 文件 | 如何获得 |
+|---|---|---|
+| `left_camera_index`、`right_camera_index` | `config/velocity_servo_tag.yaml` | 使用 `v4l2-ctl --list-devices` 查看左右相机对应的 `/dev/videoN`，填写数字 `N` |
+| `camera_width`、`camera_height`、`camera_fps` | `config/velocity_servo_tag.yaml` | 使用 `v4l2-ctl -d /dev/videoN --list-formats-ext`，选择左右相机都支持的模式 |
+| `tag_family`、`target_tag_id` | `config/velocity_servo_tag.yaml` | 根据实际打印的 AprilTag 类型和编号填写 |
+| `robot_ip` | Launch 启动参数 | 从 FR3 Desk 或网络设置中确认，启动时使用 `robot_ip:=...` 传入 |
+| `cameraIntrinsicsStage1` | `simulink/config/stereo_ibvs_config.m` | 在实际分辨率和固定 Zoom 下，使用 MATLAB Camera Calibrator 或 OpenCV 分别标定左右相机 |
+| `T_CL2L8` | `simulink/config/stereo_ibvs_config.m` | 通过眼在手上的手眼标定获得相机坐标系到 `fr3_link8` 的 `4×4` 变换矩阵 |
+| `Zd` | `simulink/config/stereo_ibvs_config.m` | 测量期望工作位置下相机光心到 AprilTag 平面的距离，单位为米 |
+| `cameraMountCalibrated`、`cameraIntrinsicsCalibrated` | `simulink/config/stereo_ibvs_config.m` | 对应标定完成并验证后改为 `true` |
+
+相机内参填写顺序：
+
+```text
+[fxL; fyL; cxL; cyL; fxR; fyR; cxR; cyR]
+```
+
+相机内参必须对应 YAML 中实际使用的分辨率和固定 Zoom。手眼标定矩阵必须满足：
+
+```text
+p_L8 = T_CL2L8 × p_CL
+```
+
+标定完成后设置：
+
+```matlab
+cfg.cameraMountCalibrated = true;
+cfg.cameraIntrinsicsCalibrated = true;
+```
+
+`cfg.stage1CalibrationReady` 会由这两个许可自动计算，不需要手动修改。Stage 1 暂时不需要配置 `stereoBaseline`、`stereoCalibrationValid` 和 Zoom 标定；速度、加速度、超时和 `filter_coefficient` 先保留当前安全默认值。
+
+### 7.2 配置文件关系
+
 | 配置文件 | 谁读取 | 控制哪些文件/节点 |
 |---|---|---|
 | `config/velocity_servo_tag.yaml` | Launch 将参数传给 ROS 2 节点 | `vision_double_node`、`velocity_command_node` |
@@ -383,7 +419,7 @@ flowchart LR
 
 Python 节点读取 YAML；Simulink `.slx` 不读取 YAML。`simulink_ros2` YAML 段只记录接口，Simulink 的实际 Topic 位于 ROS 2 Block 中，实际安全参数由 `stereo_ibvs_config.m` 加载。
 
-常用参数：
+### 7.3 常用参数
 
 ```text
 相机：640×480，目标 60 Hz
