@@ -122,7 +122,8 @@ velocity_command_node:
     # mapper崩溃或停止发布后，超过此时间开始平滑减速。
     target_velocity_timeout_sec: 0.15
 
-    input_topic: "/velocity_mapper_node/target_joints_velocities"
+    # 这里我们改成simulink直接发布关节速度
+    input_topic: "/simulink/target_joints_velocities"
     command_topic: "/joint_velocity_example_controller/commands"
 
 

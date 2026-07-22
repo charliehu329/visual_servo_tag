@@ -16,7 +16,7 @@ cfg = struct();
 %% 阶段与采样时间
 cfg.stage = 1;
 
-cfg.cameraFps = 60;
+cfg.cameraFps = 120;
 cfg.Ts = 1 / cfg.cameraFps;
 
 %% FR3机器人模型
