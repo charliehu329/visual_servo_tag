@@ -73,11 +73,6 @@ end
 % 只做编译检查，不修改、不保存core模型。
 set_param(coreModelName, 'SimulationCommand', 'update');
 
-% core自己的InitFcn可能重新运行配置，因此更新后再次设置离线许可。
-cfgLocal = evalin('base', 'cfg');
-cfgLocal.stage1CalibrationReady = true;
-assignin('base', 'cfg', cfgLocal);
-
 %% 4. 新建sim模型
 simModelName = 'stereo_ibvs_sim_stage1';
 simModelFile = fullfile(simDir, [simModelName '.slx']);
@@ -95,8 +90,7 @@ open_system(simModelName);
 
 try
     configureSimulationModel(simModelName);
-    configureSimulationCallbacks( ...
-        simModelName, configFile, coreDir, configDir);
+    configureSimulationCallbacks(simModelName);
 
     addDescription(simModelName);
 
@@ -109,6 +103,9 @@ try
 
     connectTopLevel( ...
         simModelName, scenarioPath, coreBlockPath);
+
+    % 先保存一次，使InitFcn能够从当前slx位置计算相对路径。
+    save_system(simModelName, simModelFile);
 
     % 编译检查新生成的sim模型。
     set_param(simModelName, ...
@@ -169,41 +166,31 @@ set_param( ...
 end
 
 
-function configureSimulationCallbacks( ...
-    modelName, configFile, coreDir, configDir)
+function configureSimulationCallbacks(modelName)
 % 代码作用：
-% 只在生成的sim模型内部设置初始化和停止回调。
-% 不修改core或config文件。
+% 在生成的sim模型内部设置可移植的初始化和停止回调。
+% 回调根据当前slx位置寻找core和config，不保存本机绝对路径。
 %
 % 输入参数含义：
 % modelName：
 % 仿真模型名称。
 %
-% configFile：
-% 配置文件完整路径。
-%
-% coreDir：
-% core模型目录。
-%
-% configDir：
-% 配置文件目录。
-%
 % 输出参数含义：
 % 本函数没有输出参数。
 
-configEscaped = escapeQuotes(configFile);
-coreDirEscaped = escapeQuotes(coreDir);
-configDirEscaped = escapeQuotes(configDir);
-
-initCallback = sprintf([ ...
-    'addpath(''%s'');' ...
-    'addpath(''%s'');' ...
-    'run(''%s'');' ...
+initCallback = [ ...
+    'simFile__=get_param(bdroot,''FileName'');' ...
+    'simDir__=fileparts(simFile__);' ...
+    'simulinkDir__=fileparts(simDir__);' ...
+    'coreDir__=fullfile(simulinkDir__,''core'');' ...
+    'configDir__=fullfile(simulinkDir__,''config'');' ...
+    'configFile__=fullfile(configDir__,''stereo_ibvs_config.m'');' ...
+    'addpath(coreDir__);' ...
+    'addpath(configDir__);' ...
+    'run(configFile__);' ...
     'cfg.stage1CalibrationReady=true;' ...
-    'assignin(''base'',''cfg'',cfg);'], ...
-    coreDirEscaped, ...
-    configDirEscaped, ...
-    configEscaped);
+    'assignin(''base'',''cfg'',cfg);' ...
+    'clear simFile__ simDir__ simulinkDir__ coreDir__ configDir__ configFile__'];
 
 stopCallback = [ ...
     'if evalin(''base'',' ...
@@ -822,15 +809,6 @@ add_block( ...
 end
 
 
-function escaped = escapeQuotes(textValue)
-% 代码作用：
-% 转义模型回调字符串中的单引号。
-
-escaped = strrep( ...
-    textValue, '''', '''''');
-end
-
-
 function result = samePath(pathA, pathB)
 % 代码作用：
 % 判断两个路径是否指向同一个文件。
@@ -868,10 +846,10 @@ scriptDir = fileparts(mfilename('fullpath'));
 candidateRoots = {};
 
 if ~isempty(projectDir)
-    candidateRoots{end+1} = char(projectDir);
+    candidateRoots{end+1, 1} = char(projectDir);
 end
 
-candidateRoots = [candidateRoots, {
+candidateRoots = [candidateRoots; {
     scriptDir
     fileparts(scriptDir)
     fileparts(fileparts(scriptDir))

@@ -56,6 +56,13 @@ git clone https://github.com/charliehu329/visual_servo_tag.git
 
 ### 3.2 安装依赖
 
+本项目依赖 [sunflower050105/franka_ros2](https://github.com/sunflower050105/franka_ros2) 的 `jazzy` 分支，而不是官方仓库的同名示例控制器。该分支保留了自定义 `JointVelocityExampleController`，会订阅七维速度命令并进行底层滤波。
+
+```bash
+cd ~/franka_ros2_ws/src
+git clone -b jazzy https://github.com/sunflower050105/franka_ros2.git franka_ros2
+```
+
 ```bash
 cd ~/franka_ros2_ws
 source /opt/ros/jazzy/setup.bash
@@ -99,6 +106,16 @@ colcon build --symlink-install --packages-select velocity_servo_tag
 source install/setup.bash
 ```
 
+启动 FR3 控制器后，检查实际加载的是上述自定义控制器：
+
+```bash
+ros2 pkg prefix franka_example_controllers
+ros2 topic info -v /joint_velocity_example_controller/commands
+ros2 param get /joint_velocity_example_controller filter_coefficient
+```
+
+命令 Topic 应显示一个控制器订阅者，`filter_coefficient` 应为 `0.01`。
+
 ## 4. 如何运行
 
 ### 4.1 每个新终端的准备
@@ -109,10 +126,14 @@ source install/setup.bash
 cd ~/franka_ros2_ws
 ```
 
-加载 ROS 2 和 Python 环境：
+加载 ROS 2 环境：
 
 ```bash
 source /opt/ros/jazzy/setup.bash
+```
+
+加载 Python 虚拟环境（如有）：
+```bash
 source .venv/bin/activate
 ```
 
@@ -165,7 +186,11 @@ ros2 launch velocity_servo_tag full_system.launch.py \
 
 #### `vision_double.launch.py`
 
-直接启动 `vision_double_node`，适合单独测试双相机。
+只启动一个节点：
+
+```text
+vision_double_node
+```
 
 | 参数 | 默认值 | 作用 |
 |---|---|---|
@@ -173,7 +198,13 @@ ros2 launch velocity_servo_tag full_system.launch.py \
 
 #### `velocity_servo_tag.launch.py`
 
-当前同样用于启动双目视觉，主要作为 `full_system.launch.py` 的上层包含入口，不启动 MATLAB、FR3 或速度命令节点。
+只启动一个节点：
+
+```text
+vision_double_node
+```
+
+`start_vision=false` 时不启动任何节点。
 
 | 参数 | 默认值 | 作用 |
 |---|---|---|
@@ -182,7 +213,17 @@ ros2 launch velocity_servo_tag full_system.launch.py \
 
 #### `fr3_hardware.launch.py`
 
-启动 FR3 驱动、关节状态广播器、关节速度控制器和 `velocity_command_node`。默认 `command_mode=zero`。
+启动以下组件：
+
+```text
+Franka硬件驱动
+joint_state_broadcaster
+franka_robot_state_broadcaster
+joint_velocity_example_controller
+velocity_command_node
+```
+
+不启动双目视觉或 MATLAB/Simulink。默认 `command_mode=zero`。
 
 | 参数 | 默认值 | 作用 |
 |---|---|---|
@@ -195,7 +236,14 @@ ros2 launch velocity_servo_tag full_system.launch.py \
 
 #### `full_system.launch.py`
 
-组合双目视觉和可选 FR3 硬件，是当前统一 ROS 2 入口。默认不连接真实硬件。
+统一组合以下两部分：
+
+```text
+vision_double_node
+可选的FR3硬件链路
+```
+
+默认只启动 `vision_double_node`，不连接真实硬件，也不启动 MATLAB/Simulink。
 
 | 参数 | 默认值 | 作用 |
 |---|---|---|
@@ -212,6 +260,8 @@ ros2 launch velocity_servo_tag full_system.launch.py \
 
 MATLAB/Simulink 不会被任何 Launch 自动启动。建议从已经加载 ROS 2 环境的终端启动 MATLAB：
 
+在终端执行：
+
 ```bash
 cd ~/franka_ros2_ws
 source /opt/ros/jazzy/setup.bash
@@ -219,7 +269,7 @@ source install/setup.bash
 matlab
 ```
 
-在 MATLAB 中执行：
+在 MATLAB 命令窗口执行：
 
 ```matlab
 repoDir = fullfile(getenv('HOME'), ...
@@ -236,6 +286,17 @@ open_system(fullfile(repoDir, 'simulink', 'ros2', ...
 ```
 
 打开模型后执行 Update Diagram，再运行模型。当前标定许可默认为 `false`，因此关节速度保持为零属于正常安全行为。
+
+#### 每次启动
+
+每个新的 MATLAB 会话都先执行上面的终端命令，再执行 MATLAB 命令窗口中的初始化命令。不需要每次都运行 `colcon build`。
+
+#### 修改文件后
+
+- 修改 `.m` 配置：重新运行 `stereo_ibvs_config.m`，然后执行 Update Diagram；
+- 修改 `.slx`：保存模型，然后执行 Update Diagram；
+- 修改 Python、Launch 或 YAML：重新运行 `colcon build`，再执行 `source install/setup.bash`；
+- 只修改 MATLAB/Simulink 文件：不需要运行 colcon 编译。
 
 ## 5. 数据流向
 
@@ -313,12 +374,12 @@ flowchart LR
 
 ## 7. 配置文件
 
-| 文件 | 作用 |
-|---|---|
-| `config/velocity_servo_tag.yaml` | 相机编号、AprilTag、发布频率、视觉超时和 Python 最终命令限制 |
-| `config/controllers.yaml` | `ros2_control` 更新频率、速度控制器和底层滤波参数 |
-| `simulink/config/stereo_ibvs_config.m` | FR3 模型、相机参数、控制增益、安全阈值和标定许可 |
-| `config/urdf/fr3.urdf` | Simulink 使用的 FR3 机器人模型 |
+| 配置文件 | 谁读取 | 控制哪些文件/节点 |
+|---|---|---|
+| `config/velocity_servo_tag.yaml` | Launch 将参数传给 ROS 2 节点 | `vision_double_node`、`velocity_command_node` |
+| `config/controllers.yaml` | `fr3_hardware.launch.py` 传给 `controller_manager` | 状态广播器、`joint_velocity_example_controller` 及其底层滤波 |
+| `simulink/config/stereo_ibvs_config.m` | 三个 Simulink 模型的初始化回调 | `stereo_ibvs_core.slx`、`stereo_ibvs_ros2_stage1.slx`、`stereo_ibvs_sim_stage1.slx` |
+| `config/urdf/fr3.urdf` | `stereo_ibvs_config.m` | 三个 Simulink 模型使用的 FR3 运动学模型 |
 
 Python 节点读取 YAML；Simulink `.slx` 不读取 YAML。`simulink_ros2` YAML 段只记录接口，Simulink 的实际 Topic 位于 ROS 2 Block 中，实际安全参数由 `stereo_ibvs_config.m` 加载。
 
@@ -390,6 +451,7 @@ Python命令超时：0.15 s
 ### 5. FR3 低速实验
 
 - 先测试底层 `zero` 模式并准备实体急停；
+- 当前 C++ 控制器没有命令 freshness watchdog，不能用关闭终端代替实体急停；
 - 再切换到 `topic`，从很小的图像偏差开始；
 - 保持 `0.03 rad/s` Simulink 限速和 `0.20 rad/s²` Python 加速度限制；
 - 验证运动方向以及目标丢失后的平滑停车。

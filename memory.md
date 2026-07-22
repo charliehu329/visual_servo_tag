@@ -80,6 +80,8 @@ visual_servo_tag/
 
 Stage 1 核心模型已经完成，并通过 MATLAB R2025b Update Diagram。当前使用固定相机内参和固定逆深度，执行左相机图像中心 IBVS，输出 `7×1` 关节速度；EKF 和主动变焦暂为后续阶段接口。顶层端口编译类型均为 `double`，采样周期为 `cfg.Ts = 1/120 s`。
 
+Core 的 `InitFcn` 仅在基础工作区缺少完整 `cfg` 时加载正式配置；已有完整 `cfg` 会直接使用。因此 ROS 2 模型仍加载真实标定许可，离线仿真可临时设置 `stage1CalibrationReady=true`，两者不再互相覆盖。
+
 常用顶层接口：
 
 ```text
@@ -152,6 +154,12 @@ MATLAB R2025b Update Diagram 和临时动态测试均通过；动态测试覆盖
 
 已移除机器人模型中的 `fr3_leftfinger` 和 `fr3_rightfinger` 分支，Jacobian 已由错误的 `6×9` 修正为 `6×7`，并增加 7 自由度检查。
 
+## `simulink/sim/stereo_ibvs_sim_stage1.slx`
+
+Stage 1 离线仿真已由 `simulink/build/sim/build_stereo_ibvs_sim_stage1.m` 重新生成。模型根据自身 `.slx` 位置查找 `core/` 和 `config/`，不再保存本机绝对路径；离线标定许可只在当前 MATLAB 工作区临时开启，不修改正式配置文件。
+
+验证结果：启动关闭、目标居中和目标丢失阶段的关节速度均为零；目标偏离阶段最大绝对关节速度为 `0.03 rad/s`。
+
 ## Python ROS 2 节点
 
 当前保留单目/双目视觉检测、通用安全函数和 `velocity_command_node`。`velocity_mapper_node.py` 已删除，Stage 1 关节速度由 Simulink 直接计算。setup、launch、YAML 和 Python 默认 Topic 中的旧 Mapper 配置已经清理。
@@ -181,7 +189,8 @@ Stage 1 双目视觉节点代码已经完成：
 - 全新 MATLAB 会话首次加载时可能先提示找不到 core，模型 PostLoad 加入路径后执行 Ctrl+D 可以通过；
 - ROS 2 通信已经验证，但新双目节点尚未与真实双相机和 Simulink 联合运行；
 - 普通 USB 相机没有硬件同步，当前使用软件单调时钟检查双目检测时间差；
-- Zoom 位置当前固定为 `[0;0]`，没有真实位置反馈。
+- Zoom 位置当前固定为 `[0;0]`，没有真实位置反馈；
+- 当前自定义 C++ `JointVelocityExampleController` 没有命令 freshness watchdog，不能用关闭终端代替实体急停。
 
 ## 下一步
 
@@ -189,11 +198,16 @@ Stage 1 双目视觉节点代码已经完成：
 2. 在 Ubuntu 24.04 / ROS 2 Jazzy 上重新构建包，验证 Launch 参数和 `full_system.launch.py`；
 3. 设置左右相机 ID，验证两台 USB 相机、实际检测帧率和输出 Topic；
 4. 将 `vision_double_node` 与 Simulink 联合运行，并采集真实 `/franka/joint_states` 核对关节顺序；
-5. 完成真实标定后，对接 Python 最终安全转发链路并进行零速到低速真机验证。
+5. 启动控制器后核对命令 Topic 订阅者和 `filter_coefficient=0.01`；
+6. 完成真实标定后，对接 Python 最终安全转发链路并进行零速到低速真机验证。
 
 # 工作日志
 
-说明：每次做完工作就记录在下面，记录时间，修改的文件，新增的功能，以及备注（如果需要）
+说明：每次做完工作后记录到分钟，每次改完代码后都要在Memory.md里记录本次工作的内容和时间，精确到分钟，格式为：（按逐个文件说）
+1:修改什么文件
+2:修改了什么内容（简要概括）
+3:修改的原因，目的，作用
+4:备注（可选写和不写）
 
 ## 2026-07-21：完成 Stage 1 ROS 2 包装模型
 
@@ -301,6 +315,150 @@ memory.md
 完成内容：按照“概述、项目框架、部署、运行、数据流向、ROS 2 接口、配置、安全、分阶段目标、测试”的结构重写 README；将编译和 source 命令分开，补充四个 Launch 的启动示例、全部可传入参数，以及标明节点、Simulink、Topic 和消息尺寸的 Mermaid 数据流图；测试章节按双相机、零速度全链路、JointState、标定和 FR3 低速实验排列。
 
 下一项工作：开始实验前全面检查，确认代码和配置是否适合按照 README 的测试顺序进入真实设备实验。
+
+## 2026-07-22：修正离线仿真配置覆盖并补充控制器依赖
+
+修改文件：
+
+```text
+README.md
+simulink/build/sim/build_stereo_ibvs_sim_stage1.m
+simulink/core/stereo_ibvs_core.slx
+simulink/sim/stereo_ibvs_sim_stage1.slx
+memory.md
+```
+
+完成内容：Core 只在缺少完整 `cfg` 时加载正式配置；离线仿真改为按 `.slx` 位置寻找 core 和 config，并修正生成脚本的候选路径维度和首次保存顺序；README 明确依赖 `sunflower050105/franka_ros2` 的 `jazzy` 分支及其自定义 `JointVelocityExampleController`，补充控制器、Topic 订阅者和滤波参数检查命令，并记录 C++ 控制器当前没有命令 freshness watchdog。
+
+验证：Core 和 ROS 2 包装模型通过 MATLAB R2025b Update Diagram；离线仿真通过 6 秒场景测试，偏移阶段最大绝对关节速度为 `0.03 rad/s`，关闭、居中和丢失阶段均为零；正式标定配置仍保持关闭。
+
+## 2026-07-23 02:26：精简 README 运行与配置说明
+
+修改文件：
+
+```text
+README.md
+memory.md
+```
+
+完成内容：精简四个 Launch 的启动说明，只列出实际启动的节点或组件；在 MATLAB/Simulink 启动部分区分终端命令和 MATLAB 命令窗口，并补充每次启动及修改不同文件后的操作；配置表改为“配置文件、谁读取、控制哪些文件或节点”。保留用户已修改的 Python 虚拟环境说明，不修改 Launch 代码。
+
+## 2026-07-22 工作总结
+
+记录时间：2026-07-23 02:44
+
+### `AGENTS.md`
+
+- 修改：增加修改完成后提供中文 Commit 内容和文件分组的协作要求。
+- 目的：方便后续按功能整理和提交修改。
+
+### `.gitignore`
+
+- 修改：补充 Python、ROS 2、MATLAB/Simulink 和 macOS 自动生成文件的忽略规则。
+- 目的：避免缓存、构建目录和临时文件进入 Git。
+
+### `README.md`
+
+- 修改：重写项目概述、部署、运行、数据流、ROS 2 接口、配置、安全机制、阶段目标和测试流程；补充 sunflower `franka_ros2` 依赖、控制器检查命令、四个 Launch 的启动组件、MATLAB 启动和文件修改后的操作。
+- 目的：形成可以直接用于 Stage 1 部署和实验的工程说明。
+- 备注：真实双相机和 FR3 非零实验尚未完成。
+
+### `memory.md`
+
+- 修改：重构项目目标、文件架构、文件状态、实现计划和配置关系；同步当天全部修改和验证结果；规定后续日志按文件逐个记录。
+- 目的：保证下一次工作能够直接接续当前状态。
+
+### `setup.py`
+
+- 修改：增加双目视觉节点安装入口并删除 Mapper 遗留入口。
+- 目的：使 ROS 2 能够安装和启动 `vision_double_node`，同时清理已删除节点。
+
+### `package.xml`
+
+- 修改：清理已删除 Mapper 相关内容并同步当前运行依赖。
+- 目的：让包描述与实际节点和启动方式一致。
+
+### `config/velocity_servo_tag.yaml`
+
+- 修改：增加双相机、AprilTag、60 Hz 发布、特征超时、Zoom 零占位和最终速度命令参数；统一 Simulink Topic 与安全参数记录。
+- 目的：集中配置 `vision_double_node` 和 `velocity_command_node`。
+- 备注：其中 `simulink_ros2` 段只记录接口，不会自动修改 Simulink 模型。
+
+### `launch/vision_double.launch.py`
+
+- 修改：新增双目视觉独立启动入口。
+- 目的：便于单独启动和测试 `vision_double_node`。
+
+### `launch/velocity_servo_tag.launch.py`
+
+- 修改：改为启动 `vision_double_node`，并保留 `start_vision` 开关。
+- 目的：作为 `full_system.launch.py` 的视觉入口，清理旧 Mapper 链路。
+
+### `launch/full_system.launch.py`
+
+- 修改：组合双目视觉和可选 FR3 硬件链路，默认 `start_hardware=false`、`command_mode=zero`。
+- 目的：提供当前 Stage 1 的统一 ROS 2 启动入口。
+- 备注：MATLAB/Simulink 仍需单独启动。
+
+### `velocity_servo_tag/vision/stereo_features.py`
+
+- 修改：新增双目特征组合、检测新鲜度、左右时间差和 Zoom 零占位算法。
+- 目的：把左右 AprilTag 检测结果整理为 Simulink 使用的 8 维输入。
+
+### `velocity_servo_tag/vision/vision_double_node.py`
+
+- 修改：实现左右 USB 相机独立采集和 AprilTag 检测，发布双目特征与 `[0,0]` Zoom 位置。
+- 目的：完成 Stage 1 双目视觉 ROS 2 输入节点。
+- 备注：相机 ID、USB 带宽和真实 60 Hz 性能待 Ubuntu 实机验证。
+
+### `velocity_servo_tag/velocity_command_node.py`
+
+- 修改：统一接收 `/simulink/target_joints_velocities`；保留 zero/topic 模式、七维检查、速度限制、加速度限制、超时和平滑停车。
+- 目的：作为 Simulink 与 FR3 C++ 速度控制器之间的最终安全转发层。
+
+### `test/test_stereo_features.py`
+
+- 修改：新增尺度、有效双目、检测超时、双目时间差和 Zoom 占位测试。
+- 目的：验证不依赖真实相机的双目特征算法。
+- 备注：共 6 项测试已经通过。
+
+### `simulink/config/stereo_ibvs_config.m`
+
+- 修改：加入 Joint/Vision freshness、目标丢失和恢复帧数等包装层参数，并保持真实标定许可为 `false`。
+- 目的：统一 Core、ROS 2 包装和离线仿真的 Stage 1 参数。
+
+### `simulink/ros2/stereo_ibvs_ros2_stage1.slx`
+
+- 修改：删除外部 controller enable；加入 Joint/Vision 超时、三帧目标丢失停止、三帧恢复、合法视觉保持、自动内部使能和故障复位。
+- 目的：在 Simulink 包装层完成输入有效性和目标丢失保护。
+- 备注：Update Diagram 和动态安全场景测试已经通过。
+
+### `simulink/build/sim/build_stereo_ibvs_sim_stage1.m`
+
+- 修改：整理生成脚本名称和路径；改用相对模型位置查找 Core 与配置；修正候选路径维度和首次保存顺序。
+- 目的：让离线仿真模型能够在不同用户名和工作区路径下重新生成。
+
+### `simulink/core/stereo_ibvs_core.slx`
+
+- 修改：调整 InitFcn，仅在缺少完整 `cfg` 时加载正式配置。
+- 目的：避免 Core 覆盖离线仿真的临时标定许可，同时保持真实 ROS 2 模型默认锁零。
+- 备注：MATLAB R2025b Update Diagram 已通过。
+
+### `simulink/sim/stereo_ibvs_sim_stage1.slx`
+
+- 修改：重新生成模型并移除 `/home/harry/...` 绝对路径。
+- 目的：恢复可移植的 Stage 1 离线仿真。
+- 备注：偏移阶段最大绝对关节速度为 `0.03 rad/s`，关闭、居中和目标丢失阶段均为零。
+
+### 下一步
+
+1. 在 Ubuntu 24.04 / ROS 2 Jazzy 编译项目并检查自定义速度控制器；
+2. 设置左右相机 ID，验证 AprilTag 检测和实际发布频率；
+3. 保持 `command_mode=zero`，完成双相机、Simulink、Python 和控制器全链路联调；
+4. 核对 `/franka/joint_states` 前七项的关节顺序；
+5. 完成左相机内参和手眼标定；
+6. 准备实体急停后进行 FR3 低速实验；
+7. Stage 1 实验验证完成后再进入双目深度等 Stage 2 内容。
 
 # 实现计划
 
