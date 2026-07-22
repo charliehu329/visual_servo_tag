@@ -5,9 +5,9 @@
 
 apriltag_detector:
   ros__parameters:
-    camera_index: 0
-    camera_width: 640
-    camera_height: 480
+    camera_index: 2
+    camera_width: 1920
+    camera_height: 1080
     camera_fps: 60.0
 
     tag_family: "tag36h11"
