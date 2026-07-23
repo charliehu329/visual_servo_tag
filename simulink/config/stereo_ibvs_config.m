@@ -186,13 +186,39 @@ cfg.Zd = 0.75;
 cfg.rhoD = 1 / cfg.Zd;
 
 % 中心误差反馈增益。
-cfg.Kc = diag([1.0,1.0]);
+cfg.Kc = diag([2.5,2.5]);
 
 % 阻尼最小二乘系数。
-cfg.lambdaC = 0.03;
+cfg.lambdaC = 0.02;
 
 % 默认关闭控制器。
 cfg.controllerEnableDefault = 0;
+
+%% 完整分层优先级控制器参数
+
+% 数值保护阈值。
+cfg.numericalEpsilon = 1e-8;
+
+% 鲁棒控制项。
+cfg.robustEnable = 0;
+cfg.betaC = 0;
+cfg.epsilonC = 1e-3;
+
+cfg.betaRho = 0;
+cfg.epsilonRho = 1e-3;
+
+% 逆深度次任务参数。
+cfg.kRho = 1.5;
+cfg.lambdaRho = 0.0;
+
+% 零空间关节中位回归。
+cfg.nullspaceEnable = 0;
+cfg.kNull = 0.05;
+cfg.qMid = 0.5 * (cfg.qMin + cfg.qMax);
+
+% 允许左相机中心任务。
+cfg.leftOnlyCenterControlEnable = true;
+
 
 %% Stage 1 ROS输入安全监督
 % JointState和视觉Topic超过该时间没有新消息时，自动关闭内部使能。
