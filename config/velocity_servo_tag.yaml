@@ -79,17 +79,18 @@ velocity_command_node:
     publish_rate_hz: 120.0
 
     # 相对于FR3官方关节速度上限的最终保护比例。
-    max_velocity_scale: 0.10
+    max_velocity_scale: 0.50
 
-    # 底层命令桥接层的加速度限制，单位rad/s²。
+    # 底层命令桥接层的加速度限制，七维速度增量整组同比例缩放。
+    # 120 Hz下的0.40 rad/s²与Core 60 Hz下的0.20 rad/s²单周期增量相同。
     max_joint_accelerations:
-      - 0.20
-      - 0.20
-      - 0.20
-      - 0.20
-      - 0.20
-      - 0.20
-      - 0.20
+      - 0.40
+      - 0.40
+      - 0.40
+      - 0.40
+      - 0.40
+      - 0.40
+      - 0.40
 
     # Simulink停止发布后，超过此时间开始平滑减速。
     target_velocity_timeout_sec: 0.15

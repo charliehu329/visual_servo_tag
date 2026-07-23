@@ -371,9 +371,15 @@ cfg.armDepthResponseThreshold = 1e-4;
 cfg.qLimitSoftMargin = 5*pi/180;
 cfg.cartesianLinearSpeedMax = 2.0;
 
-% Core 最终算法层低速限制。
+% FR3 官方全局关节速度上限为
+% [2.62, 2.62, 2.62, 2.62, 5.26, 4.18, 5.26] rad/s；
+% cfg.qDotMax 从 URDF 读取并继续作为硬件能力边界。
+% Core 的 0.03 rad/s 是算法层低速上限，09 安全模块按七维整组同比例缩放。
 cfg.qDotAlgorithmMax = ...
     min(cfg.qDotMax, 0.03 * ones(7,1));
+
+% Core 算法层关节加速度上限；七维速度增量按同一个比例缩小。
+cfg.qDDotAlgorithmMax = 0.20 * ones(7,1);
 
 %% 14. ROS 2 输入监督与消息尺寸
 cfg.jointStateTimeoutSec = 0.10;
