@@ -1,4 +1,4 @@
-function build_stereo_ibvs_core_v3()
+function build_stereo_ibvs_core()
 %BUILD_STEREO_IBVS_CORE_V3 Rebuild the complete V2 deployment Core.
 %
 % This script creates all 10 Core subsystems, all MATLAB Function code,
