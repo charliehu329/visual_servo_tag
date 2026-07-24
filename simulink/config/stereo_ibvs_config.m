@@ -85,7 +85,7 @@ cfg.focalRateCommandUnit = 'mm/s';
 cfg.focalLengthStateInitialMm = zeros(2,1);
 
 %% 4. FR3 URDF 与机器人模型
-cfg.urdfPath = fullfile(repoDir, 'config', 'urdf', 'fr3.urdf');
+cfg.urdfPath = fullfile(repoDir,'velocity_servo_tag', 'config', 'urdf', 'fr3.urdf');
 
 if ~isfile(cfg.urdfPath)
     error('StereoIBVS:URDFNotFound', ...

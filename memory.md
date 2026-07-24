@@ -687,3 +687,18 @@ memory.md
 1. 修改什么文件：`memory.md`
 2. 修改了什么内容：记录本次 `.gitignore` 调整及 backup 保持可提交的约定。
 3. 修改的原因、目的、作用：保留生成文件管理规则的变更记录，方便后续提交与维护。
+
+## 2026-07-24 14:14：调整 ROS Build 的仓库内消息路径
+
+### `simulink/build/ros/build_stereo_ibvs_ros.m`
+
+1. 修改什么文件：`simulink/build/ros/build_stereo_ibvs_ros.m`
+2. 修改了什么内容：将自定义消息源目录和 `matlab_msg_gen` 生成目录改为新的 Git 仓库根目录；首次缺少生成目录时自动执行 `ros2genmsg(projectRoot)`；模型初始化回调同步从仓库根目录加载生成消息。
+3. 修改的原因、目的、作用：适配主 Python 包与 `velocity_servo_tag_interfaces` 接口包在同一仓库中平级存放的新目录结构，避免继续依赖仓库上一级路径。
+4. 备注：按要求仅修改，未执行 MATLAB 构建或其他验证。
+
+### `memory.md`
+
+1. 修改什么文件：`memory.md`
+2. 修改了什么内容：记录本次 ROS Build 路径调整。
+3. 修改的原因、目的、作用：保留目录重构后的构建入口变更记录。
