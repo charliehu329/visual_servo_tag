@@ -10,15 +10,16 @@ velocity_servo_tag.launch.py
     start_vision：是否启动vision_double_node。
 
 输出：
-    /vision_double/target_features
-    /vision_double/zoom_position_steps
+    /vision_double/stereo_features
+        velocity_servo_tag_interfaces/msg/StereoFeatures
 
 调用：
     ros2 launch velocity_servo_tag velocity_servo_tag.launch.py
 
 方法：
     使用YAML配置左右USB相机和AprilTag检测参数。本Launch不启动
-    MATLAB/Simulink、Franka硬件或velocity_command_node。
+    MATLAB/Simulink、Franka硬件、焦距反馈节点或
+    velocity_command_node。
 """
 
 import os

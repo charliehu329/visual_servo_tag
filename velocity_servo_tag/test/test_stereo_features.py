@@ -3,10 +3,10 @@
 test_stereo_features.py
 
 功能：
-    验证双目AprilTag像素尺度、超时、双目时间差和Zoom占位值。
+    验证双目AprilTag像素尺度、uint32帧序号和纳秒时间戳拆分。
 
 输入：
-    人工构造的四角像素坐标与左右CameraFeature。
+    人工构造的四角像素坐标、帧序号和纳秒时间戳。
 
 输出：
     unittest测试结果。
@@ -15,7 +15,7 @@ test_stereo_features.py
     python3 -m unittest discover -v -s test -p 'test_stereo_features.py'
 
 方法：
-    使用已知正方形面积和确定时间戳，对纯算法函数进行无相机、无ROS测试。
+    使用已知正方形面积和边界值，对纯算法函数进行无相机、无ROS测试。
 """
 
 import unittest
@@ -23,10 +23,10 @@ import unittest
 import numpy as np
 
 from velocity_servo_tag.vision.stereo_features import (
-    CameraFeature,
-    ZOOM_POSITION_PLACEHOLDER,
-    build_stereo_feature_vector,
+    UINT32_MAX,
     compute_tag_scale,
+    next_frame_sequence,
+    split_timestamp_ns,
 )
 
 
@@ -65,137 +65,46 @@ class StereoFeaturesTest(unittest.TestCase):
         with self.assertRaises(ValueError):
             compute_tag_scale(corners)
 
-    def test_build_stereo_feature_vector_for_fresh_pair(
-        self,
-    ):
-        """新鲜且同步的左右结果应完整写入8维向量。"""
-
-        left = CameraFeature(
-            valid=True,
-            u=100.0,
-            v=110.0,
-            scale=25.0,
-            stamp=9.98,
-        )
-        right = CameraFeature(
-            valid=True,
-            u=200.0,
-            v=210.0,
-            scale=24.0,
-            stamp=9.99,
-        )
-
-        output = build_stereo_feature_vector(
-            left,
-            right,
-            now=10.0,
-            timeout=0.10,
-            max_pair_skew=0.05,
-        )
-
-        np.testing.assert_allclose(
-            output,
-            [
-                1.0,
-                1.0,
-                100.0,
-                110.0,
-                200.0,
-                210.0,
-                25.0,
-                24.0,
-            ],
-        )
-
-    def test_stale_feature_is_zeroed(self):
-        """超过超时的相机结果应置valid=0并清零数据。"""
-
-        left = CameraFeature(
-            valid=True,
-            u=100.0,
-            v=110.0,
-            scale=25.0,
-            stamp=9.0,
-        )
-        right = CameraFeature(
-            valid=True,
-            u=200.0,
-            v=210.0,
-            scale=24.0,
-            stamp=9.99,
-        )
-
-        output = build_stereo_feature_vector(
-            left,
-            right,
-            now=10.0,
-            timeout=0.10,
-            max_pair_skew=0.05,
-        )
-
-        np.testing.assert_allclose(
-            output,
-            [
-                0.0,
-                1.0,
-                0.0,
-                0.0,
-                200.0,
-                210.0,
-                0.0,
-                24.0,
-            ],
-        )
-
-    def test_older_side_is_zeroed_for_large_pair_skew(
-        self,
-    ):
-        """左右时间差超限时只保留较新一侧。"""
-
-        left = CameraFeature(
-            valid=True,
-            u=100.0,
-            v=110.0,
-            scale=25.0,
-            stamp=9.92,
-        )
-        right = CameraFeature(
-            valid=True,
-            u=200.0,
-            v=210.0,
-            scale=24.0,
-            stamp=9.99,
-        )
-
-        output = build_stereo_feature_vector(
-            left,
-            right,
-            now=10.0,
-            timeout=0.10,
-            max_pair_skew=0.05,
-        )
-
-        np.testing.assert_allclose(
-            output,
-            [
-                0.0,
-                1.0,
-                0.0,
-                0.0,
-                200.0,
-                210.0,
-                0.0,
-                24.0,
-            ],
-        )
-
-    def test_zoom_position_placeholder_is_two_zeros(self):
-        """Stage 1 Zoom位置占位必须严格为两个零。"""
+    def test_next_frame_sequence_increments(self):
+        """普通帧序号应增加1。"""
 
         self.assertEqual(
-            ZOOM_POSITION_PLACEHOLDER,
-            (0.0, 0.0),
+            next_frame_sequence(41),
+            42,
         )
+
+    def test_next_frame_sequence_wraps_uint32(self):
+        """uint32最大值的下一帧应回绕到0。"""
+
+        self.assertEqual(
+            next_frame_sequence(UINT32_MAX),
+            0,
+        )
+
+    def test_next_frame_sequence_rejects_invalid_range(
+        self,
+    ):
+        """负数和超过uint32范围的序号必须被拒绝。"""
+
+        with self.assertRaises(ValueError):
+            next_frame_sequence(-1)
+
+        with self.assertRaises(ValueError):
+            next_frame_sequence(UINT32_MAX + 1)
+
+    def test_split_timestamp_ns(self):
+        """整数纳秒时间戳应正确拆分为秒和纳秒。"""
+
+        self.assertEqual(
+            split_timestamp_ns(12_345_678_901),
+            (12, 345_678_901),
+        )
+
+    def test_split_timestamp_rejects_negative(self):
+        """负时间戳必须被拒绝。"""
+
+        with self.assertRaises(ValueError):
+            split_timestamp_ns(-1)
 
 
 if __name__ == "__main__":

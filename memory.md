@@ -702,3 +702,51 @@ memory.md
 1. 修改什么文件：`memory.md`
 2. 修改了什么内容：记录本次 ROS Build 路径调整。
 3. 修改的原因、目的、作用：保留目录重构后的构建入口变更记录。
+
+## 2026-07-24 15:03：Python视觉端切换到真实新帧自定义消息
+
+### `velocity_servo_tag/velocity_servo_tag/vision/vision_double_node.py`
+
+1. 修改什么文件：`velocity_servo_tag/velocity_servo_tag/vision/vision_double_node.py`
+2. 修改了什么内容：改为发布 `StereoFeatures`；左右相机分别维护 `uint32` 帧序号和近似采集时间；真实新帧无Tag时发布 `valid=false`；断流时不增加序号；只有左右序号变化才发布；删除旧8维数组和Zoom占位发布。
+3. 修改的原因、目的、作用：禁止固定频率重复快照被Simulink当作新测量，并支持左相机独立更新及新双目帧对触发EKF。
+4. 备注：采集时间使用成功取出图像时的系统时间；焦距由独立节点发布到 `/stereo/focal_length`。
+
+### `velocity_servo_tag/velocity_servo_tag/vision/stereo_features.py`
+
+1. 修改什么文件：`velocity_servo_tag/velocity_servo_tag/vision/stereo_features.py`
+2. 修改了什么内容：`CameraFeature` 增加帧序号和纳秒采集时间；新增uint32序号回绕及ROS Time字段拆分函数；删除旧8维快照新鲜度、双目裁剪和Zoom占位算法。
+3. 修改的原因、目的、作用：为自定义消息提供无ROS依赖的帧状态与时间转换工具，将双目配对和超时判断统一交给Simulink ROS层。
+
+### `velocity_servo_tag/config/velocity_servo_tag.yaml`
+
+1. 修改什么文件：`velocity_servo_tag/config/velocity_servo_tag.yaml`
+2. 修改了什么内容：视觉Topic参数改为 `/vision_double/stereo_features`；删除Python端特征超时、双目时间差和Zoom占位参数；注明焦距由独立节点发布。
+3. 修改的原因、目的、作用：使Python运行参数与新的自定义消息链路和Simulink职责一致。
+4. 备注：YAML解析通过。
+
+### `velocity_servo_tag/launch/vision_double.launch.py`
+
+1. 修改什么文件：`velocity_servo_tag/launch/vision_double.launch.py`
+2. 修改了什么内容：输出说明改为 `StereoFeatures`，并注明本Launch不发布Zoom占位消息。
+3. 修改的原因、目的、作用：避免启动说明继续引用已删除的旧Topic。
+
+### `velocity_servo_tag/launch/velocity_servo_tag.launch.py`
+
+1. 修改什么文件：`velocity_servo_tag/launch/velocity_servo_tag.launch.py`
+2. 修改了什么内容：输出说明改为 `StereoFeatures`，并明确焦距反馈节点不由该Launch启动。
+3. 修改的原因、目的、作用：使上层视觉启动入口与当前ROS接口一致。
+
+### `velocity_servo_tag/test/test_stereo_features.py`
+
+1. 修改什么文件：`velocity_servo_tag/test/test_stereo_features.py`
+2. 修改了什么内容：删除旧8维快照和Zoom占位测试，新增uint32序号递增、回绕、越界及纳秒时间戳拆分测试。
+3. 修改的原因、目的、作用：覆盖新视觉消息使用的纯算法边界。
+4. 备注：共7项单元测试通过。
+
+### `memory.md`
+
+1. 修改什么文件：`memory.md`
+2. 修改了什么内容：记录Python真实新帧发布、旧Zoom接口清理和验证结果。
+3. 修改的原因、目的、作用：为后续Ubuntu ROS 2联调和焦距反馈接入保留依据。
+4. 备注：修改的Python文件语法检查通过，`git diff --check`通过；未连接真实相机或ROS 2运行时。

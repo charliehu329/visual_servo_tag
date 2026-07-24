@@ -3,23 +3,24 @@
 stereo_features.py
 
 功能：
-    提供双目 AprilTag 特征的纯算法处理，不访问相机，也不依赖 ROS 2。
+    提供双目 AprilTag 新帧消息所需的纯算法工具，不访问相机，
+    也不依赖 ROS 2。
 
 输入：
-    AprilTag 四个像素角点、左右相机最近一次检测结果、当前单调时钟、
-    检测超时时间和允许的双目时间差。
+    AprilTag 四个像素角点、当前 uint32 帧序号和纳秒时间戳。
 
 输出：
-    AprilTag 像素尺度，以及 Simulink Stage 1 使用的 8 维双目特征：
-    [validL, validR, uL, vL, uR, vR, scaleL, scaleR]。
+    AprilTag 像素尺度、回绕后的下一帧序号，以及 ROS 2 Time
+    使用的秒和纳秒字段。
 
 调用：
     compute_tag_scale(corners)
-    build_stereo_feature_vector(left, right, now, timeout, max_pair_skew)
+    next_frame_sequence(current_sequence)
+    split_timestamp_ns(timestamp_ns)
 
 方法：
     使用鞋带公式计算四角多边形像素面积，并取面积平方根作为尺度。
-    检测结果超时后置为无效；左右结果时间差过大时，将较旧一侧置为无效。
+    帧序号按 uint32 回绕；整数纳秒时间戳通过 divmod 拆分。
 """
 
 from dataclasses import dataclass
@@ -28,18 +29,20 @@ import math
 import numpy as np
 
 
-ZOOM_POSITION_PLACEHOLDER = (0.0, 0.0)
+UINT32_MAX = (1 << 32) - 1
+NANOSECONDS_PER_SECOND = 1_000_000_000
 
 
 @dataclass(frozen=True)
 class CameraFeature:
-    """一侧相机最近一次 AprilTag 检测结果。"""
+    """一侧相机最近处理完成的真实图像结果。"""
 
+    sequence: int = 0
+    capture_stamp_ns: int = 0
     valid: bool = False
     u: float = 0.0
     v: float = 0.0
     scale: float = 0.0
-    stamp: float = 0.0
 
 
 def compute_tag_scale(corners):
@@ -86,90 +89,52 @@ def compute_tag_scale(corners):
     return math.sqrt(area)
 
 
-def is_feature_fresh(feature, now, timeout):
-    """检查检测值、时间戳和新鲜度是否合法。"""
+def next_frame_sequence(current_sequence):
+    """返回按uint32自然回绕的下一帧序号。"""
 
-    values = (
-        feature.u,
-        feature.v,
-        feature.scale,
-        feature.stamp,
-    )
-
-    if not feature.valid:
-        return False
-
-    if not all(math.isfinite(value) for value in values):
-        return False
-
-    if feature.scale <= 0.0:
-        return False
-
-    age = now - feature.stamp
-
-    return 0.0 <= age <= timeout
-
-
-def build_stereo_feature_vector(
-    left_feature,
-    right_feature,
-    now,
-    timeout,
-    max_pair_skew,
-):
-    """
-    生成 Stage 1 使用的 8 维双目特征向量。
-    """
-
-    if not math.isfinite(now):
-        raise ValueError("now must be finite.")
-
-    if not math.isfinite(timeout) or timeout <= 0.0:
-        raise ValueError("timeout must be positive.")
-
-    if (
-        not math.isfinite(max_pair_skew)
-        or max_pair_skew < 0.0
-    ):
+    if isinstance(current_sequence, bool):
         raise ValueError(
-            "max_pair_skew must be non-negative."
+            "current_sequence must be an integer."
         )
 
-    left_valid = is_feature_fresh(
-        left_feature,
-        now,
-        timeout,
-    )
-    right_valid = is_feature_fresh(
-        right_feature,
-        now,
-        timeout,
-    )
+    sequence = int(current_sequence)
 
-    if left_valid and right_valid:
-        pair_skew = abs(
-            left_feature.stamp
-            - right_feature.stamp
+    if sequence != current_sequence:
+        raise ValueError(
+            "current_sequence must be an integer."
         )
 
-        if pair_skew > max_pair_skew:
-            if left_feature.stamp < right_feature.stamp:
-                left_valid = False
-            else:
-                right_valid = False
+    if sequence < 0 or sequence > UINT32_MAX:
+        raise ValueError(
+            "current_sequence is outside uint32 range."
+        )
 
-    output = np.zeros(8, dtype=float)
-    output[0] = float(left_valid)
-    output[1] = float(right_valid)
+    return (sequence + 1) & UINT32_MAX
 
-    if left_valid:
-        output[2] = left_feature.u
-        output[3] = left_feature.v
-        output[6] = left_feature.scale
 
-    if right_valid:
-        output[4] = right_feature.u
-        output[5] = right_feature.v
-        output[7] = right_feature.scale
+def split_timestamp_ns(timestamp_ns):
+    """将非负整数纳秒时间戳拆为ROS 2 Time字段。"""
 
-    return output
+    if isinstance(timestamp_ns, bool):
+        raise ValueError(
+            "timestamp_ns must be an integer."
+        )
+
+    timestamp = int(timestamp_ns)
+
+    if timestamp != timestamp_ns:
+        raise ValueError(
+            "timestamp_ns must be an integer."
+        )
+
+    if timestamp < 0:
+        raise ValueError(
+            "timestamp_ns must be non-negative."
+        )
+
+    seconds, nanoseconds = divmod(
+        timestamp,
+        NANOSECONDS_PER_SECOND,
+    )
+
+    return int(seconds), int(nanoseconds)

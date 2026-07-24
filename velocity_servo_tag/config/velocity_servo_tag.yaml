@@ -13,7 +13,7 @@ vision_double_node:
     camera_height: 480
     camera_fps: 60.0
 
-    # ROS 2特征和Zoom占位消息的目标发布频率。
+    # 检查左右相机新帧序号并刷新预览窗口的频率。
     publish_rate_hz: 60.0
 
     tag_family: "tag36h11"
@@ -29,19 +29,12 @@ vision_double_node:
     # 一阶低通滤波系数，1.0表示不滤波。
     uv_filter_alpha: 0.4
 
-    # 检测结果超过该时间后，对应valid自动置零。
-    feature_timeout_sec: 0.10
-
-    # 左右有效结果时间差过大时，较旧一侧valid置零。
-    max_pair_skew_sec: 0.05
-
     # USB相机打开失败后的重试间隔。
     camera_reopen_delay_sec: 2.0
 
-    target_features_topic: "/vision_double/target_features"
-    zoom_position_topic: "/vision_double/zoom_position_steps"
+    # 仅在任一相机处理完成真实新帧时发布。
+    stereo_features_topic: "/vision_double/stereo_features"
 
-    # Stage 1节点会固定发布[0.0, 0.0] Zoom位置，不控制电机。
     # 是否显示左右相机OpenCV预览窗口。
     show_window: true
 
@@ -106,13 +99,14 @@ simulink_ros2:
   ros__parameters:
     sample_time_sec: 0.016666666666666666
 
-    # Python端后续改为只在左右相机产生真实新帧时发布该自定义消息。
+    # Python端只在左右相机产生真实新帧时发布该自定义消息。
     vision_topic: "/vision_double/stereo_features"
     vision_message_type: "velocity_servo_tag_interfaces/StereoFeatures"
 
     joint_state_topic: "/franka/joint_states"
     joint_state_message_type: "sensor_msgs/JointState"
 
+    # 由独立焦距反馈节点发布，vision_double_node不再发布Zoom占位值。
     focal_length_topic: "/stereo/focal_length"
     reset_topic: "/simulink/reset"
 

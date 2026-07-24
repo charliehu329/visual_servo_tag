@@ -9,14 +9,15 @@ vision_double.launch.py
     params_file：ROS 2参数文件路径。
 
 输出：
-    /vision_double/target_features
-    /vision_double/zoom_position_steps
+    /vision_double/stereo_features
+        velocity_servo_tag_interfaces/msg/StereoFeatures
 
 调用：
     ros2 launch velocity_servo_tag vision_double.launch.py
 
 方法：
     从已安装包的config目录查找默认YAML，并启动vision_double_node。
+    焦距反馈由独立节点发布，本Launch不发布Zoom占位消息。
 """
 
 import os
