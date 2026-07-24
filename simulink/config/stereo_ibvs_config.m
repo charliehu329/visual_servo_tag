@@ -10,92 +10,59 @@
 % 4. 启动后收到第一帧有效焦距前，cameraModelValid 必须为 false；
 % 5. 不包含目标轨迹、关节积分、相机投影、真值和噪声注入等仿真对象。
 
-%% 0. 功能开关合集
-% 本节集中设置所有运行功能开关。后续各节只把这里的值写入 cfg，
-% 因此日常切换功能时只修改本节，不需要在配置文件中向下查找。
+%% 0. 日常功能开关
+% 日常运行只需要修改本节的四个开关，其他算法逻辑由 Core 固定管理：
+% 1. Arm 开启后，只要左相机目标有效，就执行左相机中心主任务；
+% 2. Depth 开启后，在中心主任务之后加入双目逆深度次任务；
+% 3. Zoom 开启后，同时启用 Zoom 控制和对应的优先级调度；
+% 4. Nullspace 开启后，在视觉任务零空间内执行关节中位回中。
 %
-% 推荐按"基础中心任务 -> 零空间任务 -> 鲁棒项 -> 双目深度
-% -> Zoom -> Zoom优先级"的顺序逐项验证，避免多个功能同时开启后
-% 难以判断异常来自哪一层。
+% 四个功能仍分别受输入有效性、ROS 2 watchdog、标定许可和 09 安全
+% 模块约束。修改本节只能选择功能，不能绕过任何真机安全锁。
 
 % 机械臂控制总开关：
 % 1 = 允许Core生成机械臂关节速度；0 = 机械臂速度最终归零。
 % 真正输出还要求 controllerEnableSafe、左目标、相机模型、运动学和
 % Arm标定许可同时有效。本开关不能绕过09安全模块。
-armControlEnable = 1;
-
-% 左相机中心任务开关：
-% 1 = 将左相机中的目标中心调节到 cfg.centerDesired；
-% 0 = 不执行中心任务。通常应先单独验证本任务的方向和收敛性。
-centerTaskEnable = 1;
+armControlEnable = true;
 
 % 双目逆深度任务开关：
 % 1 = 在中心主任务之后加入逆深度次任务；
 % 0 = 不使用双目深度控制。
 % 开启后还需要 validLeft、validRight、validStereoQualified、
 % ekfPredictionValid 和 Depth标定许可有效。只有左相机时建议设为0。
-depthTaskEnable = 0;
-
-% 左相机单独回中许可：
-% true = validLeft有效时允许执行左相机中心任务，即使右相机无目标；
-% false = 当前Core中的中心任务将不获许可。
-% 单相机测试或右相机暂时无Tag时必须保持true。
-leftOnlyCenterControlEnable = true;
-
-% 鲁棒补偿开关：
-% 1 = 在中心误差和深度误差控制律中加入鲁棒补偿项；
-% 0 = 只使用基础IBVS控制律。
-% 真正启用时，cfg.betaC和/或cfg.betaRho必须设置为非零值，例如：
-% cfg.betaC = 0.1; cfg.betaRho = 0.1。
-% 若二者仍为0，即使本开关为1，鲁棒补偿项也仍然为0。
-% 基础控制方向、标定和增益未验证前建议保持0。
-robustEnable = 0;
+depthTaskEnable = false;
 
 % 关节中位零空间任务开关：
 % 1 = 在不破坏高优先级视觉任务的零空间内，将关节拉向cfg.qMid；
 % 0 = 不执行关节中位姿态优化。
 % 开启后由cfg.kNull决定回中强度；cfg.kNull必须大于0。
 % 当前cfg.kNull=0.05，因此本开关为1时零空间任务会实际生效。
-nullspaceEnable = 1;
+nullspaceEnable = true;
 
 % Zoom控制总开关：
 % 1 = 允许生成左右镜头焦距速度命令；0 = Zoom命令最终归零。
 % 开启后还需要实时焦距有效且新鲜、Zoom标定许可有效，并确认底层
 % 接口正确接收mm/s、正负方向正确、限速正确且停止可靠。
-zoomControlEnable = 0;
-
-% Zoom优先级调度开关：
-% true = 启用ZOOM_FIRST、ARM_RECOVERY和FULL_TRACK等调度；
-% false = 不执行Zoom优先级切换。
-% 该开关只控制调度策略，不代替zoomControlEnable。
-% 无Zoom执行器或只测试左相机回中时建议设为false。
-zoomPriorityEnable = false;
-
-% 预测式右相机可见性开关：
-% true = 使用右目标预测位置参与可见性约束；
-% false = 只使用当前测量和基础可见性判断。
-% 开启前应先验证双目标定、右目标预测方向和图像边界参数。
-usePredictiveRightVisibility = false;
-
-% 控制器默认使能：
-% 1 = ROS 2包装层启动后默认请求控制；0 = 默认保持禁止，
-% 必须由外部显式使能。真机部署建议保持0，防止模型启动即运动。
-controllerEnableDefault = 0;
-
-% EKF新测量门控：
-% true = 只有收到新的有效双目测量时才执行一次EKF校正；
-% false = 允许重复使用上一帧测量，不建议用于实时部署。
-ekfRequireNewMeasurement = true;
-
-% EKF测量协方差实时计算：
-% true = 根据实时像素焦距和baseline计算测量协方差；
-% false = 不使用该实时计算路径。当前V2部署接口建议保持true。
-ekfMeasurementCovarianceRuntime = true;
+zoomControlEnable = false;
 
 %% 0.1 标定状态与安全许可
-% 以下变量不是普通功能开关，而是"对应标定或接口已经真实完成"的
-% 声明。只有在相关参数已被实际测量、写入并验证后才能设为true；
-% 不能为了得到非零速度而直接打开，否则会绕过真机安全锁。
+% 本节集中显示当前项目还缺少哪些标定或接口验证，方便启动前检查。
+% 这些变量不是日常功能开关，而是“对应数据已经真实测量、写入配置，
+% 并完成方向、单位和安全验证”的声明。
+%
+% 必须先完成对应工作，再把变量改为 true。不能仅为了得到非零速度
+% 而打开，否则配置中的占位参数可能直接用于真机控制。
+%
+% Arm 控制许可依赖：
+%   cameraMountCalibrated
+%   cameraIntrinsicsCalibrated
+%   pixelPitchCalibrated
+% Depth 控制在 Arm 许可基础上还依赖：
+%   stereoCalibrationValid
+% Zoom 控制在 Depth 许可基础上还依赖：
+%   focalRateCommandInterfaceValidated
+% 最终许可关系在第 15 节统一计算。
 
 % 左相机相对fr3_link8的手眼变换已经标定并写入cfg.T_link8_CL。
 cameraMountCalibrated = false;
@@ -111,10 +78,6 @@ cameraIntrinsicsCalibrated = false;
 
 % Zoom底层接口已经验证mm/s单位、正负方向、限速和可靠停止。
 focalRateCommandInterfaceValidated = false;
-
-% AprilTag期望尺度仍为临时设计值。确认scaleDesired后改为false。
-scaleDesignIsProvisional = true;
-
 
 %% 1. 路径与配置版本
 projectDir = fileparts(fileparts(mfilename('fullpath')));
@@ -395,13 +358,11 @@ cfg.disparityMin = 1e-4;
 cfg.rightVisibilityMarginPx = 80;
 cfg.rightVisibilityHysteresisPx = 20;
 cfg.rightReacquireValidSamples = 5;
-cfg.usePredictiveRightVisibility = ...
-    usePredictiveRightVisibility;
 
 % AprilTag 尺度：四角面积平方根。
 cfg.targetCharacteristicSize = 0.10;
+% 当前为临时期望值，真实实验确认后替换。
 cfg.scaleDesired = [700; 700];
-cfg.scaleDesignIsProvisional = scaleDesignIsProvisional;
 
 %% 9. 完整 Arm Priority Controller
 cfg.centerDesired = [0; 0];
@@ -417,18 +378,12 @@ cfg.betaRho = 0;
 cfg.epsilonC = 1e-3;
 cfg.epsilonRho = 1e-3;
 
-cfg.robustEnable = robustEnable;
+% 鲁棒补偿不再设置独立开关；对应 beta 为 0 时补偿项自然为 0。
 cfg.nullspaceEnable = nullspaceEnable;
 cfg.kNull = 0.05;
 
 cfg.armControlEnable = armControlEnable;
-cfg.centerTaskEnable = centerTaskEnable;
 cfg.depthTaskEnable = depthTaskEnable;
-cfg.leftOnlyCenterControlEnable = ...
-    leftOnlyCenterControlEnable;
-
-% 总使能由 ROS 2 包装和安全监督共同决定。
-cfg.controllerEnableDefault = controllerEnableDefault;
 
 % 用于打断 Core 内反馈环的两个 Unit Delay 初值。
 cfg.qDotAppliedInitial = zeros(7,1);
@@ -444,14 +399,10 @@ cfg.sigmaJerk = 1.0;
 cfg.ekfCovarianceJitter = 1e-12;
 cfg.ekfSConditionMin = 1e-12;
 
-% 首次有效双目测量初始化。
+% 首次有效双目测量初始化；Core 固定只使用真实新双目测量进行校正。
 cfg.ekfInitializationMode = 1;
-cfg.ekfRequireNewMeasurement = ...
-    ekfRequireNewMeasurement;
 
 % 测量协方差由 05 模块根据实时 fxMeasuredPx、fyMeasuredPx 和 baseline 计算。
-cfg.ekfMeasurementCovarianceRuntime = ...
-    ekfMeasurementCovarianceRuntime;
 
 % 首次测量到来前的安全后备状态。
 T_W_CL0 = getTransform( ...
@@ -494,7 +445,7 @@ cfg.epsilonF = [1e-3; 1e-3];
 cfg.zoomControlEnable = zoomControlEnable;
 
 %% 12. Zoom Priority Supervisor
-cfg.zoomPriorityEnable = zoomPriorityEnable;
+% Zoom 开启时由 Core 自动启用优先级调度，不再设置第二个开关。
 cfg.scaleErrorEnterThreshold = 0.04;
 cfg.scaleErrorExitThreshold = 0.015;
 cfg.scaleSettledHoldTime = 0.25;
@@ -634,16 +585,11 @@ fprintf('完整真机许可：%d\n', ...
     double(cfg.fullDeploymentReady));
 
 clear projectDir repoDir fr3 cameraBody cameraJoint T_W_CL0 ...
-    armControlEnable centerTaskEnable depthTaskEnable ...
-    leftOnlyCenterControlEnable robustEnable nullspaceEnable ...
-    zoomControlEnable zoomPriorityEnable ...
-    usePredictiveRightVisibility controllerEnableDefault ...
-    ekfRequireNewMeasurement ...
-    ekfMeasurementCovarianceRuntime ...
+    armControlEnable depthTaskEnable ...
+    nullspaceEnable zoomControlEnable ...
     cameraMountCalibrated stereoCalibrationValid ...
     pixelPitchCalibrated cameraIntrinsicsCalibrated ...
-    focalRateCommandInterfaceValidated ...
-    scaleDesignIsProvisional;
+    focalRateCommandInterfaceValidated;
 
 
 function fr3 = parseFr3UrdfForController(urdfFile)

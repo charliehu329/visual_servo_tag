@@ -780,3 +780,40 @@ memory.md
 2. 修改了什么内容：记录本次 README 和两处 Launch 默认参数同步。
 3. 修改的原因、目的、作用：保留项目文档与运行默认值变更的可追踪记录。
 4. 备注：`git diff --check` 通过，未运行 Simulink 构建或真实 ROS 2/相机/FR3 联调。
+
+## 2026-07-24 17:35：精简部署配置功能开关
+
+### `simulink/config/stereo_ibvs_config.m`
+
+1. 修改什么文件：`simulink/config/stereo_ibvs_config.m`
+2. 修改了什么内容：日常功能开关精简为 `armControlEnable`、`depthTaskEnable`、`zoomControlEnable` 和 `nullspaceEnable`；保留并详细说明五项标定状态；删除中心任务、左相机许可、鲁棒项、Zoom 调度、右相机预测、默认使能和 EKF 策略等重复或固定逻辑开关及其 `cfg` 字段。
+3. 修改的原因、目的、作用：减少相互依赖和含义重复的开关，使日常配置只表达 Arm、Depth、Zoom 和 Nullspace 四项功能选择，同时继续在文件开头直观显示标定完成状态。
+4. 备注：MATLAB R2025b 配置加载通过；字段断言确认四个功能开关和五个标定状态存在、九个旧开关不存在，未标定状态下 `fullDeploymentReady=0`。Core Build 尚未同步，本次未生成或修改 SLX。
+
+### `memory.md`
+
+1. 修改什么文件：`memory.md`
+2. 修改了什么内容：记录本次配置开关精简范围、设计规则和验证结果。
+3. 修改的原因、目的、作用：明确 Config 已完成而 Core Build 尚待同步，避免后续工作误判当前过渡状态。
+
+## 2026-07-24 17:39：同步精简后的 Core 完整构建
+
+### `simulink/build/core/build_stereo_ibvs_core.m`
+
+1. 修改什么文件：`simulink/build/core/build_stereo_ibvs_core.m`
+2. 修改了什么内容：中心任务固定启用；EKF 固定只使用真实新双目测量；Arm 和 Zoom 鲁棒补偿固定进入计算并由对应 `beta` 数值决定是否产生补偿；左相机有效即可执行中心任务；Zoom 优先级调度直接跟随 `zoomControlEnable`。
+3. 修改的原因、目的、作用：消除对九个已删除 `cfg` 开关字段的依赖，同时采用固定逻辑保持现有模型端口和 MATLAB Function 签名不变，降低本次修改范围。
+4. 备注：完整 Build、Update Diagram 和七项关键 Constant 结构断言通过；MATLAB `checkcode` 仅提示脚本原有的 `datestr`、`now` 建议及一个未使用变量。
+
+### `simulink/core/stereo_ibvs_core.slx`
+
+1. 修改什么文件：`simulink/core/stereo_ibvs_core.slx`
+2. 修改了什么内容：使用更新后的完整 Build 重新生成 Core；顶层继续保持 `10` 个输入和 `3` 个输出。
+3. 修改的原因、目的、作用：使生成模型与精简后的 Config 和完整 Build 保持一致。
+4. 备注：模型内未检出九个旧 `cfg` 字段；构建自动生成备份 `simulink/core/backup/stereo_ibvs_core_backup_20260724_173834.slx`。
+
+### `memory.md`
+
+1. 修改什么文件：`memory.md`
+2. 修改了什么内容：记录完整 Core Build、生成模型、固定逻辑和验证结果。
+3. 修改的原因、目的、作用：完成 Config 精简后的 Core 同步记录，明确本次没有维护已删除的模块化 Build 文件。
