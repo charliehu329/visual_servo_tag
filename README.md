@@ -334,6 +334,8 @@ open_system(fullfile(projectRoot, 'simulink', 'ros2', ...
 
 ## 5. 数据流向
 
+全流程数据流
+
 ```mermaid
 flowchart LR
     CAM["左右 USB 相机"] --> VISION["vision_double_node"]
@@ -357,6 +359,27 @@ flowchart LR
 
     OUTPUT -->|"/simulink/controller_status<br/>Float64MultiArray [13]"| MONITOR["终端 / 数据记录"]
     OUTPUT -->|"/simulink/focal_rate_cmd<br/>Float64MultiArray [2]，mm/s"| ZOOM["外部变焦执行器"]
+```
+
+velocity_command_node数据流
+
+```mermaid
+flowchart LR
+    A["Simulink发布7维速度"] --> B{"topic模式？"}
+    B -- 否 --> C["目标速度保持为0"]
+    B -- 是 --> D{"长度为7且全部有限？"}
+    D -- 否 --> E["进入安全停止"]
+    D -- 是 --> F["七维速度同比例限幅"]
+    F --> G["保存目标速度和接收时间"]
+    C --> H["120 Hz定时器"]
+    E --> H
+    G --> H
+    H --> I{"命令是否超时？"}
+    I -- 是 --> J["目标速度设为0"]
+    I -- 否 --> K["使用最新目标速度"]
+    J --> L["加速度限制"]
+    K --> L
+    L --> M["发布给Franka底层控制器"]
 ```
 
 ## 6. ROS 2 节点与 Topic
@@ -412,6 +435,19 @@ u_right、v_right、scale_right
 ```
 
 Simulink 按照 `JointState.name` 将位置和速度重排为 `fr3_joint1` 到 `fr3_joint7`。`qMeasured` 送入运动学，`qDotMeasured` 送入相机速度和逆深度动态；名称缺失、长度错误、NaN/Inf 或反馈超时都会停止控制。当前不使用 Python 最终命令或 Core 上一周期命令作为实际速度降级值。
+
+### 6.3 Topic 内部数据说明
+
+| Topic | Topic 内部信息 |
+|---|---|
+| `/vision_double/stereo_features` | `left_sequence`、`right_sequence`、`left_capture_stamp`、`right_capture_stamp`、`valid_left`、`valid_right`、`u_left`、`v_left`、`scale_left`、`u_right`、`v_right`、`scale_right` |
+| `/franka/joint_states` | `header.stamp`：消息时间；`name[]`：关节名称；`position[]`：关节角度，单位 `rad`；`velocity[]`：关节速度，单位 `rad/s`；`effort[]`：关节力矩。Simulink 根据 `name[]` 重排 `fr3_joint1～fr3_joint7` |
+| `/stereo/focal_length` | `data[0]`：左相机焦距，单位 `mm`；`data[1]`：右相机焦距，单位 `mm` |
+| `/simulink/reset` | `data=false`：不复位；`data=true`：触发一次控制器状态复位 |
+| `/simulink/target_joints_velocities` | `data[0～6]`：Simulink 输出的 `fr3_joint1～fr3_joint7` 目标关节速度，单位 `rad/s` |
+| `/simulink/focal_rate_cmd` | `data[0]`：左相机焦距变化率；`data[1]`：右相机焦距变化率，单位均为 `mm/s` |
+| `/simulink/controller_status` | `data[0]`：`inputDataValid`；`data[1]`：`cameraModelValid`；`data[2]`：`focalLengthFresh`；`data[3]`：`kinematicsValid`；`data[4]`：`validLeft`；`data[5]`：`validRight`；`data[6]`：`validStereoQualified`；`data[7]`：`ekfPredictionValid`；`data[8]`：`ekfMeasurementUpdated`；`data[9]`：`depthTaskWeight`；`data[10]`：`schedulerMode`；`data[11]`：`safetyValid`；`data[12]`：`controllerEnableSafe` |
+| `/joint_velocity_example_controller/commands` | `data[0～6]`：Python 安全处理后最终发送给 `fr3_joint1～fr3_joint7` 的关节速度，单位 `rad/s` |
 
 ## 7. 配置文件
 
