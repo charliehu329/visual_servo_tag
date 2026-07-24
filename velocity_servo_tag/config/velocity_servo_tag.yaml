@@ -6,11 +6,11 @@
 vision_double_node:
   ros__parameters:
     # 左右USB相机编号，部署前根据/dev/video*实际映射修改。
-    left_camera_index: 0
+    left_camera_index: 2
     right_camera_index: 1
 
-    camera_width: 640
-    camera_height: 480
+    camera_width: 1920
+    camera_height: 1080
     camera_fps: 60.0
 
     # 检查左右相机新帧序号并刷新预览窗口的频率。
