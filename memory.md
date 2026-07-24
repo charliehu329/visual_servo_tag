@@ -750,3 +750,33 @@ memory.md
 2. 修改了什么内容：记录Python真实新帧发布、旧Zoom接口清理和验证结果。
 3. 修改的原因、目的、作用：为后续Ubuntu ROS 2联调和焦距反馈接入保留依据。
 4. 备注：修改的Python文件语法检查通过，`git diff --check`通过；未连接真实相机或ROS 2运行时。
+
+## 2026-07-24 16:10：更新双目 V2 ROS 架构说明
+
+### `README.md`
+
+1. 修改什么文件：`README.md`
+2. 修改了什么内容：保留原有章节、表格和 Mermaid 风格，更新双包仓库结构、自定义 `StereoFeatures`、真实新帧语义、JointState 重排与实测速度反馈、V2 Core/ROS 数据流、焦距接口、13维状态、分层速度和加速度整形、部署构建方法、安全机制及测试顺序。
+3. 修改的原因、目的、作用：使使用文档与当前 Core、ROS 包装层、Python 节点和接口包保持一致，删除已经失效的 Stage 1、旧视觉数组和 Zoom 占位接口说明。
+4. 备注：明确记录 YAML 双目节点 `640×480` 与 Simulink 当前 `1920×1080` 的待统一事项，以及焦距反馈节点当前由外部提供。
+
+### `velocity_servo_tag/launch/fr3_hardware.launch.py`
+
+1. 修改什么文件：`velocity_servo_tag/launch/fr3_hardware.launch.py`
+2. 修改了什么内容：将 `max_velocity_scale` Launch 默认值从 `0.10` 同步为 YAML 当前使用的 `0.50`。
+3. 修改的原因、目的、作用：避免 Launch 默认参数覆盖 YAML 后造成文档、配置和实际运行值不一致。
+4. 备注：Python 语法检查通过。
+
+### `velocity_servo_tag/launch/full_system.launch.py`
+
+1. 修改什么文件：`velocity_servo_tag/launch/full_system.launch.py`
+2. 修改了什么内容：将统一入口的 `max_velocity_scale` 默认值从 `0.10` 同步为 `0.50`。
+3. 修改的原因、目的、作用：保证统一入口向硬件 Launch 传递的默认最终速度比例与项目当前配置一致。
+4. 备注：Python 语法检查通过。
+
+### `memory.md`
+
+1. 修改什么文件：`memory.md`
+2. 修改了什么内容：记录本次 README 和两处 Launch 默认参数同步。
+3. 修改的原因、目的、作用：保留项目文档与运行默认值变更的可追踪记录。
+4. 备注：`git diff --check` 通过，未运行 Simulink 构建或真实 ROS 2/相机/FR3 联调。
