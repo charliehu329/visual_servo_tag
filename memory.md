@@ -589,7 +589,101 @@ memory.md
 
 - Simulink 的主要工作区参数由 `stereo_ibvs_config.m` 设置；模型块内部仍可能包含自身参数；
 - Python 节点读取 `velocity_servo_tag.yaml`，Simulink `.slx` 当前不会读取这个 YAML；
-- YAML 中现有 `simulink_ros2` 段只是接口记录，不会自动创建或修改 Simulink 接口；当前记录已与 `.slx` 的 `1/120 s` 和 `/simulink/target_joints_velocities` 对齐；
+- YAML 中现有 `simulink_ros2` 段只是接口记录，不会自动创建或修改 Simulink 接口；当前记录已与 `.slx` 的 `1/60 s`、自定义双目特征接口和 `/simulink/target_joints_velocities` 对齐；
 - ROS 包装安全参数实际由 `stereo_ibvs_config.m` 加载：Joint/Vision 超时 `0.10 s`、丢失 `3` 帧停止、恢复 `3` 帧使能，目标来源为左相机 `validL`；
 - 当前 `cameraMountCalibrated`、`cameraIntrinsicsCalibrated`、`stereoCalibrationValid` 和 `zoomCalibrationValid` 均为 `false`；
 - 后续手眼、双目和变焦标定结果计划独立保存在 `simulink/calibration/`。
+
+## 2026-07-24 13:22：搭建 Core 配套 ROS 2 层与自定义视觉接口
+
+### `simulink/config/stereo_ibvs_config.m`
+
+1. 修改什么文件：`simulink/config/stereo_ibvs_config.m`
+2. 修改了什么内容：新增 JointState、自定义双目特征、复位、关节速度命令和控制状态的 Topic 与消息类型；增加 FR3 期望关节名、双目最大配对时间差和 JointState 超时帧数。
+3. 修改的原因、目的、作用：集中管理 ROS 2 包装模型的全部接口参数，并为按名称重排关节状态和判断新双目配对提供配置。
+4. 备注：Core 仍为 `60 Hz`；视觉超时与 JointState 超时均为 `0.10 s`。
+
+### `simulink/build/core/build_stereo_ibvs_core.m`
+
+1. 修改什么文件：`simulink/build/core/build_stereo_ibvs_core.m`
+2. 修改了什么内容：Core 顶层输入扩展为 `10` 个；新增 `qDotMeasuredRaw`、左相机真实新帧和新双目配对事件；01 模块保存实测关节速度并按左帧监督视觉新鲜度；05 EKF 只接收新双目配对事件；06 逆深度动态使用 `JointState.velocity`；09 加速度限幅继续使用 Core 自身上一周期 `qDotApplied`。
+3. 修改的原因、目的、作用：让需要机器人运动反馈的估计使用真实关节速度，同时避免将经过真实机器人和底层滤波的速度错误用于 Core 自身命令加速度限幅。
+4. 备注：JointState 或视觉超时后，06 的 `motionFeedbackValid` 由 `controllerEnableSafe` 拉低，不再使用保存的旧速度估计 `rhoDot`。
+
+### `simulink/core/stereo_ibvs_core.slx`
+
+1. 修改什么文件：`simulink/core/stereo_ibvs_core.slx`
+2. 修改了什么内容：使用唯一完整 Core Build 重新生成 `10` 输入、`3` 输出模型，并包含新的实测速度和视觉事件链路。
+3. 修改的原因、目的、作用：保证当前可加载模型与完整构建脚本一致。
+4. 备注：MATLAB R2025b 完整构建和 Update Diagram 通过；结构断言确认 06 的第 7 输入来自实测 `qDot`、第 8 输入来自安全使能，`qDot Applied Delay` 仅连接 09 的第 11 输入。
+
+### `simulink/build/ros/build_stereo_ibvs_ros.m`
+
+1. 修改什么文件：`simulink/build/ros/build_stereo_ibvs_ros.m`
+2. 修改了什么内容：新增完整 ROS 2 包装模型构建入口；订阅 JointState、自定义双目特征、焦距和复位；按照 `JointState.name` 重排 `position/velocity`；根据左右帧序号和采集时刻产生左帧事件与新双目配对事件；封装并发布关节速度、焦距速度和 13 维状态。
+3. 修改的原因、目的、作用：将 Core 接入真实 ROS 2 数据流，同时保持 ROS 消息处理与控制算法分层。
+4. 备注：关节名先在 Simulink 块层转换为固定 `uint8` 字节和长度向量，再进入 MATLAB Function；避免把 ROS 字符串总线数组直接送入算法函数。`checkcode` 无问题。
+
+### `simulink/ros2/stereo_ibvs_ros.slx`
+
+1. 修改什么文件：`simulink/ros2/stereo_ibvs_ros.slx`
+2. 修改了什么内容：由新 ROS Build 生成最终包装模型，引用 `stereo_ibvs_core`，连接 `10` 个输入和 `3` 个输出，并包含四个订阅接口与三个发布接口。
+3. 修改的原因、目的、作用：提供可以直接打开检查、后续部署和联调的 ROS 2 模型。
+4. 备注：完整构建和 Update Diagram 均通过；结构断言确认 Topic、消息类型、Core 端口数及关键估计连线正确。
+
+### `velocity_servo_tag_interfaces/msg/StereoFeatures.msg`
+
+1. 修改什么文件：`/Users/hlc/Desktop/Sustech/Franka_python/velocity_servo_tag_interfaces/msg/StereoFeatures.msg`
+2. 修改了什么内容：定义左右 `uint32` 帧序号、左右 `builtin_interfaces/Time` 采集时刻、左右有效位、中心像素和尺度特征；不保留多余的总 Header。
+3. 修改的原因、目的、作用：让 Simulink 能区分真实新帧、左右独立更新和新的时间合格双目配对；`uint32` 避免 MATLAB 将 ROS `uint64` 转为 `double`。
+4. 备注：`60 Hz` 连续运行约 `2.27` 年后序号才回绕；Python 发布端本次未修改。
+
+### `velocity_servo_tag_interfaces/CMakeLists.txt`
+
+1. 修改什么文件：`/Users/hlc/Desktop/Sustech/Franka_python/velocity_servo_tag_interfaces/CMakeLists.txt`
+2. 修改了什么内容：建立 `ament_cmake`/`rosidl_default_generators` 消息生成配置，并声明 `builtin_interfaces` 依赖。
+3. 修改的原因、目的、作用：使自定义视觉消息能够作为独立 ROS 2 接口包构建。
+4. 备注：MATLAB `ros2genmsg` 调用 colcon 构建成功。
+
+### `velocity_servo_tag_interfaces/package.xml`
+
+1. 修改什么文件：`/Users/hlc/Desktop/Sustech/Franka_python/velocity_servo_tag_interfaces/package.xml`
+2. 修改了什么内容：新增独立接口包清单、rosidl 生成/运行依赖和 `rosidl_interface_packages` 组声明。
+3. 修改的原因、目的、作用：让 ROS 2 工作区正确识别并按接口包方式构建。
+4. 备注：XML 语法检查通过。
+
+### `package.xml`
+
+1. 修改什么文件：`package.xml`
+2. 修改了什么内容：主包新增 `velocity_servo_tag_interfaces` 依赖。
+3. 修改的原因、目的、作用：为后续 Python 视觉节点切换到自定义消息建立依赖关系。
+4. 备注：本次没有修改 Python 发布逻辑。
+
+### `config/velocity_servo_tag.yaml`
+
+1. 修改什么文件：`config/velocity_servo_tag.yaml`
+2. 修改了什么内容：更新 `simulink_ros2` 接口记录为 `60 Hz`、自定义视觉 Topic/类型、JointState、焦距 mm 接口、焦距速度 mm/s 接口、双目配对阈值和 13 维状态长度。
+3. 修改的原因、目的、作用：使 YAML 中的接口说明与新 Core/ROS 模型保持一致。
+4. 备注：Ruby YAML 解析和关键字段断言通过；该段仍是接口记录，不会自动配置 Simulink。
+
+### `memory.md`
+
+1. 修改什么文件：`memory.md`
+2. 修改了什么内容：记录本次 Core、ROS Build、自定义接口包、生成模型、接口约定和验证结果。
+3. 修改的原因、目的、作用：为后续 Python 端按新帧发布自定义消息和真实 ROS 2 联调保留可追踪依据。
+4. 备注：本机离线 ROS 2 烟雾仿真中，MathWorks DDS 服务在 macOS 上先出现线程亲和性和互斥锁崩溃，随后 Subscriber 报总线错误；最小 JointState 模型也出现同一 DDS 后端崩溃，因此未把该项计为模型通过或失败。生成的 `matlab_msg_gen/`、`+bus_conv_fcns/` 和 Build 备份均不建议纳入源码提交。
+
+## 2026-07-24 13:30：忽略 MATLAB ROS 自动生成目录
+
+### `.gitignore`
+
+1. 修改什么文件：`.gitignore`
+2. 修改了什么内容：新增仓库根目录 `/+bus_conv_fcns/` 和 `/matlab_msg_gen/` 忽略规则；未添加任何 backup 忽略规则。
+3. 修改的原因、目的、作用：避免 MATLAB ROS Toolbox 自动生成的消息转换和构建缓存进入版本控制，同时保留 Core 与 ROS 模型备份文件供提交。
+4. 备注：当前实际的 `matlab_msg_gen/` 位于本仓库上一级，本规则用于防止以后在本仓库内生成同名目录。
+
+### `memory.md`
+
+1. 修改什么文件：`memory.md`
+2. 修改了什么内容：记录本次 `.gitignore` 调整及 backup 保持可提交的约定。
+3. 修改的原因、目的、作用：保留生成文件管理规则的变更记录，方便后续提交与维护。

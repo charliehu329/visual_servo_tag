@@ -100,30 +100,38 @@ velocity_command_node:
     command_topic: "/joint_velocity_example_controller/commands"
 
 
-# Stage 1 Simulink ROS 2包装模型接口。
+# 当前Simulink ROS 2包装模型接口。
 # 这里集中记录接口约定；topic修改后需同步修改SLX中的ROS 2 Block。
 simulink_ros2:
   ros__parameters:
-    sample_time_sec: 0.008333333333333333
-    vision_topic: "/vision_double/target_features"
+    sample_time_sec: 0.016666666666666666
+
+    # Python端后续改为只在左右相机产生真实新帧时发布该自定义消息。
+    vision_topic: "/vision_double/stereo_features"
+    vision_message_type: "velocity_servo_tag_interfaces/StereoFeatures"
+
     joint_state_topic: "/franka/joint_states"
-    zoom_position_topic: "/vision_double/zoom_position_steps"
+    joint_state_message_type: "sensor_msgs/JointState"
+
+    focal_length_topic: "/stereo/focal_length"
     reset_topic: "/simulink/reset"
 
     joint_velocity_topic: "/simulink/target_joints_velocities"
-    zoom_step_rate_topic: "/simulink/zoom_step_rate_cmd"
+    focal_rate_topic: "/simulink/focal_rate_cmd"
     controller_status_topic: "/simulink/controller_status"
 
     # 这些数值由stereo_ibvs_config.m实际加载；此处只记录接口约定。
     joint_state_timeout_sec: 0.10
     vision_timeout_sec: 0.10
+    stereo_max_pair_skew_sec: 0.05
     target_loss_frame_limit: 3
     target_recovery_frame_count: 3
     target_valid_source: "validL"
 
     vision_message_length: 8
     joint_position_message_length: 7
-    zoom_position_message_length: 2
+    joint_velocity_feedback_message_length: 7
+    focal_length_message_length: 2
     joint_velocity_message_length: 7
-    zoom_step_rate_message_length: 2
-    controller_status_message_length: 12
+    focal_rate_message_length: 2
+    controller_status_message_length: 13

@@ -30,7 +30,36 @@ cfg.Ts = 1 / cfg.controlRateHz;
 cfg.simulinkPublishRateHz = cfg.controlRateHz;
 cfg.pythonSafetyRateHz = 120;
 
-%% 3. ROS 2 焦距反馈与焦距速度命令接口
+%% 3. ROS 2 接口
+cfg.jointStateTopic = '/franka/joint_states';
+cfg.jointStateMessageType = 'sensor_msgs/JointState';
+cfg.expectedJointNames = {
+    'fr3_joint1'
+    'fr3_joint2'
+    'fr3_joint3'
+    'fr3_joint4'
+    'fr3_joint5'
+    'fr3_joint6'
+    'fr3_joint7'
+};
+
+cfg.stereoFeatureTopic = '/vision_double/stereo_features';
+cfg.stereoFeatureMessageType = ...
+    'velocity_servo_tag_interfaces/StereoFeatures';
+cfg.stereoMaxPairSkewSec = 0.05;
+
+cfg.resetTopic = '/simulink/reset';
+cfg.resetMessageType = 'std_msgs/Bool';
+
+cfg.jointVelocityCommandTopic = ...
+    '/simulink/target_joints_velocities';
+cfg.jointVelocityCommandMessageType = ...
+    'std_msgs/Float64MultiArray';
+
+cfg.controllerStatusTopic = '/simulink/controller_status';
+cfg.controllerStatusMessageType = ...
+    'std_msgs/Float64MultiArray';
+
 % 焦距反馈：
 % data = [leftFocalLengthMm; rightFocalLengthMm]
 cfg.focalLengthTopic = '/stereo/focal_length';
@@ -393,6 +422,8 @@ cfg.visionMessageLength = 8;
 cfg.jointPositionMessageLength = 7;
 cfg.jointVelocityMessageLength = 7;
 cfg.controllerStatusMessageLength = 13;
+cfg.jointStateTimeoutFrames = ...
+    max(1,ceil(cfg.jointStateTimeoutSec/cfg.Ts));
 
 % controllerStatus 固定顺序：
 % [inputDataValid;
